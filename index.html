@@ -2095,8 +2095,8 @@ async function main() {
       try {
         indicator.textContent = `⟳ Caricamento dati… (${attempt}/3)`;
         const [w, m] = await Promise.all([
-          fetch_disabled('https://api.open-meteo.com  // DISABLED: CORS issues/v1/forecast?latitude='+LAT+'&longitude='+LNG+'&current=wind_speed_10m,wind_direction_10m,wind_gusts_10m&timezone=Europe%2FRome').then(r=>r.json()),
-          fetch_disabled('https://marine-api.open-meteo.com  // DISABLED: CORS issues/v1/marine?latitude='+LAT+'&longitude='+LNG+'&current=wave_height,wave_direction,wave_period,swell_wave_height,swell_wave_direction,swell_wave_period&timezone=Europe%2FRome&forecast_days=2').then(r=>r.json())
+          // fetch_disabled: CORS issues ('https://api.open-meteo.com  // DISABLED: CORS issues/v1/forecast?latitude='+LAT+'&longitude='+LNG+'&current=wind_speed_10m,wind_direction_10m,wind_gusts_10m&timezone=Europe%2FRome').then(r=>r.json()),
+          // fetch_disabled: CORS issues ('https://marine-api.open-meteo.com  // DISABLED: CORS issues/v1/marine?latitude='+LAT+'&longitude='+LNG+'&current=wave_height,wave_direction,wave_period,swell_wave_height,swell_wave_direction,swell_wave_period&timezone=Europe%2FRome&forecast_days=2').then(r=>r.json())
         ]);
         if (!w?.current || !m?.current) throw new Error('Dati incompleti');
         wData = w; mData = m;
@@ -2114,8 +2114,8 @@ async function main() {
         setInterval(async()=>{
           try{
             const [w2,m2] = await Promise.all([
-              fetch_disabled('https://api.open-meteo.com  // DISABLED: CORS issues/v1/forecast?latitude='+LAT+'&longitude='+LNG+'&current=wind_speed_10m,wind_direction_10m,wind_gusts_10m&timezone=Europe%2FRome').then(r=>r.json()),
-              fetch_disabled('https://marine-api.open-meteo.com  // DISABLED: CORS issues/v1/marine?latitude='+LAT+'&longitude='+LNG+'&current=wave_height,wave_direction,wave_period,swell_wave_height,swell_wave_direction,swell_wave_period&timezone=Europe%2FRome&forecast_days=2').then(r=>r.json())
+              // fetch_disabled: CORS issues ('https://api.open-meteo.com  // DISABLED: CORS issues/v1/forecast?latitude='+LAT+'&longitude='+LNG+'&current=wind_speed_10m,wind_direction_10m,wind_gusts_10m&timezone=Europe%2FRome').then(r=>r.json()),
+              // fetch_disabled: CORS issues ('https://marine-api.open-meteo.com  // DISABLED: CORS issues/v1/marine?latitude='+LAT+'&longitude='+LNG+'&current=wave_height,wave_direction,wave_period,swell_wave_height,swell_wave_direction,swell_wave_period&timezone=Europe%2FRome&forecast_days=2').then(r=>r.json())
             ]);
             wData=w2; mData=m2;
             updatePanel(wData,mData);
