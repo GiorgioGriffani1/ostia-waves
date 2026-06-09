@@ -2078,6 +2078,9 @@ async function main() {
   );
   placeMarkers(demo);
   drawVectors();
+  
+  // ✅ Blocca i marker all'avvio (non-admin)
+  enforceNoDragForNonAdmin();
 
   // (loading già nascosto all'inizio di main)
 
