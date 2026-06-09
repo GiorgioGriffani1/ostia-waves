@@ -2155,8 +2155,7 @@ function initCommunity() {
         </div>`;
       return;
     }
-    const { createClient } = window.supabaseModule;
-    supabase = createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
+    supabase = window.supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
     supabaseReady = true;
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
