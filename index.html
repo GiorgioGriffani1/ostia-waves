@@ -156,10 +156,11 @@ body{background:var(--bg);font-family:'Segoe UI',system-ui,sans-serif;overflow:h
 
 /* FORECAST CHART */
 #fchart-panel{
-  position:fixed;top:72px;left:282px;z-index:1000;
+  position:fixed;top:72px;left:310px;z-index:999;
   background:var(--panel);border:1px solid var(--border);
   border-radius:12px;padding:12px;backdrop-filter:blur(12px);
-  width:300px;display:none;
+  width:280px;max-width:calc(100vw - 330px);display:none;
+  box-shadow:0 8px 32px rgba(0,0,0,0.5);
 }
 #fchart-panel.open{display:block;}
 #fchart-ttl{font-size:10px;color:var(--accent);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px;}
@@ -538,8 +539,6 @@ body{background:var(--bg);font-family:'Segoe UI',system-ui,sans-serif;overflow:h
   <div id="logo" onclick="logoClick()">🌊 Ostia Waves</div>
   <div id="src-bar">
     <div class="src live">● Open-Meteo</div>
-    <div class="src">Surfline</div>
-    <div class="src">Windguru</div>
     <div class="src">RA Events</div>
     <div class="src">Webcam LNI</div>
   </div>
@@ -557,8 +556,6 @@ body{background:var(--bg);font-family:'Segoe UI',system-ui,sans-serif;overflow:h
   <div id="panel">
     <div id="panel-tabs">
       <div class="ptab active" onclick="switchPtab('live')">Live</div>
-      <div class="ptab" onclick="switchPtab('surfline')">Surfline</div>
-      <div class="ptab" onclick="switchPtab('windguru')">Windguru</div>
     </div>
 
     <!-- LIVE tab -->
@@ -578,46 +575,6 @@ body{background:var(--bg);font-family:'Segoe UI',system-ui,sans-serif;overflow:h
       <div style="margin-top:8px;font-size:9px;color:var(--sub);text-align:right" id="panel-time"></div>
     </div>
 
-    <!-- SURFLINE tab -->
-    <div class="ptab-content" id="pt-surfline">
-      <a class="sl-card" href="https://www.surfline.com/surf-report/lido-di-ostia/6418ded793265b858517e2ab" target="_blank">
-        <div class="sl-title">🏄 Surfline — Lido di Ostia</div>
-        <div id="sl-data">
-          <div class="sl-row">Altezza: <span id="sl-h">--</span></div>
-          <div class="sl-row">Swell: <span id="sl-sw">--</span></div>
-          <div class="sl-row">Vento: <span id="sl-w">--</span></div>
-          <div class="sl-stars" id="sl-stars">★★★☆☆</div>
-          <div style="font-size:9px;color:var(--sub);margin-top:4px" id="sl-cond">Condizioni...</div>
-        </div>
-        <div class="sl-link">Apri report →</div>
-      </a>
-      <div style="margin-top:10px;padding:8px 10px;border-radius:7px;background:rgba(0,255,204,.05);border:1px solid rgba(0,255,204,.2);">
-        <div style="font-size:10px;font-weight:700;color:var(--accent2);margin-bottom:5px;">📊 Spot Guide</div>
-        <div style="font-size:10px;color:var(--sub);line-height:1.6;">
-          Tipo: Beach break<br>
-          Esposizione: W-SW<br>
-          Fondo: Sabbia<br>
-          Periodo migliore: Ott–Apr<br>
-          <a href="https://www.surfline.com/surf-report/lido-di-ostia/6418ded793265b858517e2ab/spot-guide" target="_blank" style="color:var(--accent);text-decoration:none;">→ Spot guide completa</a>
-        </div>
-      </div>
-    </div>
-
-    <!-- WINDGURU tab -->
-    <div class="ptab-content" id="pt-windguru">
-      <div style="font-size:9px;color:var(--sub);margin-bottom:6px;letter-spacing:.8px;text-transform:uppercase;">Ostia Lido · Spot 1583</div>
-      <iframe id="wg-frame"
-        src="https://www.windguru.cz/widget/widget.php?sc=1583&uid=wglive&wj=kmh&tj=c&odj=d&fhours=48&va=0&s=0&menu=0&landing=0&iref=0"
-        scrolling="no" frameborder="0"
-        style="width:100%;height:290px;border:none;border-radius:6px;
-               filter:invert(1) hue-rotate(180deg) saturate(0.8);opacity:.92;">
-      </iframe>
-      <div class="wg-note">
-        Windguru Ostia Lido (spot 1583) — previsione 48h<br>
-        <a href="https://www.windguru.cz/1583" target="_blank" style="color:var(--accent);text-decoration:none;">→ Apri completo</a>
-        &nbsp;|&nbsp;
-        <a href="https://www.windguru.cz/49032" target="_blank" style="color:var(--accent);text-decoration:none;">→ Ostia alt.</a>
-      </div>
     </div>
   </div>
 
@@ -693,7 +650,6 @@ body{background:var(--bg);font-family:'Segoe UI',system-ui,sans-serif;overflow:h
         <div class="sc-name">Surf Academy Roma</div>
         <div class="sc-meta">📍 Castel Fusano · Surf & SUP</div>
         <div class="sc-links">
-          <a href="https://www.instagram.com/surfacademyroma" target="_blank" class="sc-link ig">IG</a>
           <a href="https://www.facebook.com/surfacademyroma" target="_blank" class="sc-link fb">FB</a>
         </div>
       </div>
@@ -701,7 +657,6 @@ body{background:var(--bg);font-family:'Segoe UI',system-ui,sans-serif;overflow:h
         <div class="sc-name">Roma Surf Club</div>
         <div class="sc-meta">📍 Capocotta · Surf & Kite</div>
         <div class="sc-links">
-          <a href="https://www.instagram.com/romasurfclub" target="_blank" class="sc-link ig">IG</a>
           <a href="https://www.facebook.com/romasurfclub" target="_blank" class="sc-link fb">FB</a>
           <a href="https://www.strava.com/clubs" target="_blank" class="sc-link st">Strava</a>
         </div>
@@ -710,14 +665,12 @@ body{background:var(--bg);font-family:'Segoe UI',system-ui,sans-serif;overflow:h
         <div class="sc-name">Lido Surf Center</div>
         <div class="sc-meta">📍 Ostia Centro · Surf & Yoga</div>
         <div class="sc-links">
-          <a href="https://www.instagram.com/lidosurfcenter" target="_blank" class="sc-link ig">IG</a>
         </div>
       </div>
       <div class="sc-card" onclick="scCardClick(this,event)" data-cat="surf">
         <div class="sc-name">Ostia Surf School</div>
         <div class="sc-meta">📍 Lido di Ostia · Surf Principianti</div>
         <div class="sc-links">
-          <a href="https://www.instagram.com/ostia_surf" target="_blank" class="sc-link ig">IG</a>
         </div>
       </div>
       <!-- ── KITE ── -->
@@ -725,23 +678,15 @@ body{background:var(--bg);font-family:'Segoe UI',system-ui,sans-serif;overflow:h
         <div class="sc-name">Kite School Ostia</div>
         <div class="sc-meta">📍 Ostia Ponente · Kitesurf</div>
         <div class="sc-links">
-          <a href="https://www.instagram.com/kiteschoolostia" target="_blank" class="sc-link ig">IG</a>
           <a href="https://www.facebook.com/kiteschoolostia" target="_blank" class="sc-link fb">FB</a>
         </div>
       </div>
-      <div class="sc-card" onclick="scCardClick(this,event)" data-cat="kite">
-        <div class="sc-name">Capocotta Kite Center</div>
-        <div class="sc-meta">📍 Capocotta · Kite & Wing</div>
-        <div class="sc-links">
-          <a href="https://www.instagram.com/capocottakite" target="_blank" class="sc-link ig">IG</a>
-        </div>
-      </div>
+
       <!-- ── WINDSURF ── -->
       <div class="sc-card" onclick="scCardClick(this,event)" data-cat="windsurf">
         <div class="sc-name">Windsurf Club Ostia</div>
         <div class="sc-meta">📍 Lido di Ostia · Windsurf</div>
         <div class="sc-links">
-          <a href="https://www.instagram.com/windsurfclubostia" target="_blank" class="sc-link ig">IG</a>
           <a href="https://www.facebook.com/windsurfclubostia" target="_blank" class="sc-link fb">FB</a>
         </div>
       </div>
@@ -757,24 +702,11 @@ body{background:var(--bg);font-family:'Segoe UI',system-ui,sans-serif;overflow:h
         <div class="sc-name">🏐 <span style="color:#ffab00">Beach Volley Ostia</span></div>
         <div class="sc-meta">📍 Lungomare · Corsi e tornei</div>
         <div class="sc-links">
-          <a href="https://www.instagram.com/beachvolleyostia" target="_blank" class="sc-link ig">IG</a>
           <a href="https://www.facebook.com/beachvolleyostia" target="_blank" class="sc-link fb">FB</a>
         </div>
       </div>
-      <div class="sc-card" onclick="scCardClick(this,event)" data-cat="beach" style="border-color:rgba(255,171,0,.3)">
-        <div class="sc-name">🏐 <span style="color:#ffab00">Ostia Beach Sport</span></div>
-        <div class="sc-meta">📍 Ostia Lido · Beach volley & tennis</div>
-        <div class="sc-links">
-          <a href="https://www.instagram.com/ostiabeachsport" target="_blank" class="sc-link ig">IG</a>
-        </div>
-      </div>
-      <div class="sc-card" onclick="scCardClick(this,event)" data-cat="beach" style="border-color:rgba(255,171,0,.3)">
-        <div class="sc-name">🏐 <span style="color:#ffab00">Castel Fusano Beach</span></div>
-        <div class="sc-meta">📍 Castel Fusano · Campi liberi</div>
-        <div class="sc-links">
-          <a href="https://www.instagram.com/castelfusanobeach" target="_blank" class="sc-link ig">IG</a>
-        </div>
-      </div>
+
+
       <!-- ── LINK UTILI ── -->
       <div class="sc-card" onclick="scCardClick(this,event)" data-cat="links" style="border-color:rgba(0,255,204,.25)">
         <div class="sc-name" style="color:var(--accent2)">🌊 Strava Heatmap</div>
@@ -900,7 +832,7 @@ body{background:var(--bg);font-family:'Segoe UI',system-ui,sans-serif;overflow:h
     <div id="filo-cta">
       Se stai leggendo questo e ti è venuta un'idea che potrebbe migliorare il sito —
       un'integrazione, una fonte di dati, un posto da mappare —
-      <a href="https://www.instagram.com/" target="_blank">scrivimi in DM</a>. Seriamente.
+      <a href="https://www.leganavaleostia.it" target="_blank">visita il nostro sito</a>. Seriamente.
     </div>
     <div id="filo-hint">easter egg ·  5 click sul logo</div>
   </div>
