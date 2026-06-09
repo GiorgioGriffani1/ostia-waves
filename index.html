@@ -2195,19 +2195,34 @@ async function doRegister(e) {
   const name  = document.getElementById('reg-name').value.trim();
   const email = document.getElementById('reg-email').value.trim();
   const pass  = document.getElementById('reg-password').value;
+  
+  if (!name || !email || !pass) {
+    showAuthErr('Compila tutti i campi');
+    return;
+  }
+  
   try {
     const { data, error } = await supabase.auth.signUp({
-    email: email,
-    password: pass
-  });
-  if (error) throw error;
-  const cred = data.user;
-    const role = email === ADMIN_EMAIL ? 'admin' : 'user';
-    await fbDb.collection('users').doc(cred.user.uid).set({
-      name, email, role, createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      email: email,
+      password: pass,
+      options: { data: { name: name } }
     });
+    
+    if (error) throw error;
+    
+    const role = email === ADMIN_EMAIL ? 'admin' : 'user';
+    await supabase.from('users').insert({
+      id: data.user.id,
+      email: email,
+      name: name,
+      role: role
+    });
+    
     closeModal('auth-modal');
-  } catch(err) { showAuthErr(authErrMsg(err.code)); }
+    alert('✅ Registrazione completata! Verifica la tua email per confermare.');
+  } catch(err) {
+    showAuthErr(err.message || 'Errore di registrazione');
+  }
 }
 
 async function doLogout() {
