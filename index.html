@@ -1303,7 +1303,7 @@ function initMap() {
       icon: makeCamIcon(map.getZoom()),
       draggable: true
     })
-      .on('click', () => { if (!adminMode) openWebcam(cam.id); })
+      .on('click', () => { window.open(cam.lniUrl, '_blank'); })
       .bindTooltip(`<span style="color:#00b4ff;font-weight:700;font-size:11px;">${cam.label} · LNI</span>`,
         { direction:'top', className:'', offset:[0,-18] })
       .on('dragend', function(e) {
