@@ -2714,20 +2714,6 @@ function updateSpotVisibility(wh, ws) {
 }
 
 // Disable all dragging for non-admin at startup
-function enforceNoAdminDrag() {
-  if (adminMode) return;
-  spotMarkers.forEach(m => { if (m.dragging) m.dragging.disable(); });
-  courtMarkers.forEach(m => { if (m.dragging) m.dragging.disable(); });
-  camMarkersGlobal.forEach(m => { if (m.dragging) m.dragging.disable(); });
-  if (typeof casaMarkerRef !== 'undefined' && casaMarkerRef && casaMarkerRef.dragging) casaMarkerRef.dragging.disable();
-}
-
-// Chiama all'inizio di main()
-window.addEventListener('load', enforceNoAdminDrag);
-window.addEventListener('focus', enforceNoAdminDrag);
-map.on('moveend', enforceNoAdminDrag);
-
-
 // Enforce: no dragging for non-admin users
 function enforceNoDragForNonAdmin() {
   if (adminMode) return;
