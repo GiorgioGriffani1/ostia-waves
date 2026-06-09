@@ -2128,7 +2128,7 @@ const DEFAULT_COURTS = [
 ];
 
 // Community state
-let supabase = null;
+let supabaseClient = null;
 let commUser = null, commUserData = null;
 let courtMarkers = [];
 let activeCourts = [...DEFAULT_COURTS];
@@ -2155,13 +2155,13 @@ function initCommunity() {
         </div>`;
       return;
     }
-    supabase = window.supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
+    supabaseClient = window.supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
     supabaseReady = true;
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: { subscription } } = supabaseClient.auth.onAuthStateChange(async (event, session) => {
       if (session) {
         commUser = session.user;
-        const { data } = await supabase.from('users').select('*').eq('id', session.user.id).single();
+        const { data } = await supabaseClient.from('users').select('*').eq('id', session.user.id).single();
         commUserData = data || { id: session.user.id, email: session.user.email, name: session.user.email.split('@')[0], role: 'user' };
         onCommLoggedIn();
       } else {
@@ -2192,7 +2192,7 @@ async function doRegister(e) {
   e.preventDefault();
   showAuthErr('');
   
-  if (!supabase || !supabaseReady) {
+  if (!supabaseClient || !supabaseReady) {
     showAuthErr('Sistema in caricamento... attendi un momento');
     return;
   }
@@ -2207,7 +2207,7 @@ async function doRegister(e) {
   }
   
   try {
-    const { data, error } = await supabase.auth.signUp({
+    const { data, error } = await supabaseClient.auth.signUp({
       email: email,
       password: pass,
       options: { data: { name: name } }
@@ -2216,7 +2216,7 @@ async function doRegister(e) {
     if (error) throw error;
     
     const role = email === ADMIN_EMAIL ? 'admin' : 'user';
-    await supabase.from('users').insert({
+    await supabaseClient.from('users').insert({
       id: data.user.id,
       email: email,
       name: name,
@@ -2232,7 +2232,7 @@ async function doRegister(e) {
 
 async function doLogout() {
   if (sessionsUnsub) { sessionsUnsub(); sessionsUnsub = null; }
-  await supabase.auth.signOut();
+  await supabaseClient.auth.signOut();
 }
 
 function authErrMsg(code) {
