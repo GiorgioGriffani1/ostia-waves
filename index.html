@@ -1175,6 +1175,8 @@ let vectorsOn = true, chartOpen = false, schoolsOpen = false;
 let currentTab = 'surf';
 // Admin drag mode
 let adminMode = false;
+
+let casaIsOpen = true; // open/closed state
 let spotMarkers = [];   // refs to surf/kite spot markers
 let camMarkersGlobal = [];  // refs to webcam markers (for admin drag)
 let lastWh = 0, lastWs = 0;  // last known wave height + wind speed
@@ -1322,6 +1324,10 @@ function initMap() {
   map.on('zoomend', () => {
     const z = map.getZoom();
     camMarkers.forEach(m => m.setIcon(makeCamIcon(z)));
+    // Update Casa Clandestina icon
+    if (typeof casaMarkerRef !== 'undefined' && casaMarkerRef) {
+      casaMarkerRef.setIcon(makeCasaIcon(z, casaIsOpen));
+    }
   });
 
   map.on('moveend zoomend', ()=>{ if(vectorsOn && wData && mData) drawVectors(); });
@@ -1329,17 +1335,36 @@ function initMap() {
   // CASA CLANDESTINA — piccola, compare solo a zoom >= 14
   const CASA_MIN_ZOOM = 14;
   var casaMarkerRef = null; // exported for admin drag mode
-  const casaIcon = L.divIcon({
-    className:'',
-    html:`<div style="
-      width:36px;height:36px;border-radius:8px;
-      background:rgba(30,10,50,.95);
-      border:2px solid rgba(180,80,255,.8);
-      display:flex;align-items:center;justify-content:center;
-      box-shadow:0 0 12px rgba(180,80,255,.5);
-      cursor:pointer;font-size:18px;" title="Casa Clandestina">🏠</div>`,
-    iconSize:[36,36], iconAnchor:[18,18]
-  });
+  
+  function makeCasaIcon(zoom, isOpen) {
+    if (zoom < CASA_MIN_ZOOM) {
+      // Dot when zoomed out: viola se aperto, grigio se chiuso
+      const color = isOpen ? '#c084fc' : '#546e7a';
+      const glow = isOpen ? 'rgba(192,132,252,.6)' : 'rgba(84,110,122,.3)';
+      return L.divIcon({
+        className: '',
+        html: `<div style="width:10px;height:10px;border-radius:50%;background:${color};border:1.5px solid ${glow};box-shadow:0 0 6px ${glow};"></div>`,
+        iconSize: [10,10], iconAnchor: [5,5]
+      });
+    }
+    // Full icon when zoomed in
+    const bgColor = isOpen ? 'rgba(192,132,252,0.95)' : 'rgba(84,110,122,0.85)';
+    const borderColor = isOpen ? 'rgba(192,132,252,0.8)' : 'rgba(84,110,122,0.5)';
+    const glowColor = isOpen ? 'rgba(192,132,252,.5)' : 'rgba(84,110,122,.2)';
+    return L.divIcon({
+      className:'',
+      html:`<div style="
+        width:36px;height:36px;border-radius:8px;
+        background:${bgColor};
+        border:2px solid ${borderColor};
+        display:flex;align-items:center;justify-content:center;
+        box-shadow:0 0 12px ${glowColor};
+        cursor:pointer;font-size:18px;" title="Casa Clandestina">🏠</div>`,
+      iconSize:[36,36], iconAnchor:[18,18]
+    });
+  }
+  
+  const casaIcon = makeCasaIcon(map.getZoom(), casaIsOpen);
   // Use saved position if dragged before
   const casaPos = getSavedPos('poi', 'casa', CASA_CLANDESTINA.lat, CASA_CLANDESTINA.lng);
   const casaMarker = L.marker([casaPos.lat, casaPos.lng], { icon: casaIcon, draggable: true })
