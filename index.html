@@ -2191,6 +2191,12 @@ async function doLogin(e) {
 async function doRegister(e) {
   e.preventDefault();
   showAuthErr('');
+  
+  if (!supabase || !supabaseReady) {
+    showAuthErr('Sistema in caricamento... attendi un momento');
+    return;
+  }
+  
   const name  = document.getElementById('reg-name').value.trim();
   const email = document.getElementById('reg-email').value.trim();
   const pass  = document.getElementById('reg-password').value;
