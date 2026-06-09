@@ -2460,7 +2460,7 @@ async function refreshBookingSlots() {
     else if (isMe)
       action = `<button class="slot-cancel" onclick="cancelBooking('${bk.id}')">Annulla</button>`;
     return `<div class="book-slot ${cls}">
-      <div class="slot-num">Slot ${n}</div>
+      <div class="slot-num">Squadra ${n <= 2 ? 1 : 2} - Gioc. ${(n-1)%2+1}</div>
       <div class="slot-name">${name}</div>
       ${action}
     </div>`;
