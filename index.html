@@ -121,7 +121,7 @@ body{background:var(--bg);font-family:'Segoe UI',system-ui,sans-serif;overflow:h
 
 /* LEGEND */
 #legend{
-  position:fixed;top:72px;right:10px;z-index:1000;
+  position:fixed;top:280px;right:10px;z-index:1000;
   background:var(--panel);border:1px solid var(--border);
   border-radius:10px;padding:10px 12px;backdrop-filter:blur(12px);width:148px;
 }
@@ -2006,10 +2006,9 @@ async function main() {
   initCommunity();
 
   const demo = {wh:.6,wp:9,wd:225,ws:15,wdir:230,wg:22,sh:.4,sp:10};
-  updatePanel(
-    {current:{wind_speed_10m:demo.ws,wind_direction_10m:demo.wdir,wind_gusts_10m:demo.wg}},
-    {current:{wave_height:demo.wh,wave_period:demo.wp,wave_direction:demo.wd,swell_wave_height:demo.sh,swell_wave_period:demo.sp}}
-  );
+  wData = {current:{wind_speed_10m:demo.ws,wind_direction_10m:demo.wdir,wind_gusts_10m:demo.wg}};
+  mData = {current:{wave_height:demo.wh,wave_period:demo.wp,wave_direction:demo.wd,swell_wave_height:demo.sh,swell_wave_period:demo.sp}};
+  updatePanel(wData, mData);
   placeMarkers(demo);
   drawVectors();
   
