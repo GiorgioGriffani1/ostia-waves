@@ -8,10 +8,8 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js" integrity="sha384-iU8HYtnGQ8Cy4zl7gbNMOhsDTTKX02BTXptVP/vqAWIaTfM7isw76iyZCsjL2eVi" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.13/dist/hls.min.js"></script>
-<!-- Firebase 10 compat -->
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<!-- Supabase -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/module/index.min.js"></script>
 <style>
 :root {
   --bg: #070d1a;
@@ -2115,15 +2113,11 @@ async function main() {
 //   }
 // }
 // ═══════════════════════════════════════════════════
-const FIREBASE_CONFIG = {
-  apiKey:            '',
-  authDomain:        '',
-  projectId:         '',
-  storageBucket:     '',
-  messagingSenderId: '',
-  appId:             ''
+const SUPABASE_CONFIG = {
+  url: 'https://myqhzmimrbtsagcktrhz.supabase.co',
+  anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im15cWh6bWltcmJ0c2FnY2t0cmh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwMTU2NTcsImV4cCI6MjA5NjU5MTY1N30.0LnlX1wR4jSeEnrB44xmZZIwxhdlLWUvjjo1ziR2tPo'
 };
-const ADMIN_EMAIL    = 'giorgio@sunnywayteambuilding.com';
+const ADMIN_EMAIL = 'giorgiogriffani1@gmail.com';
 const COURTS_MIN_ZOOM = 14;
 
 // Campi predefiniti (usati finché non ci sono dati su Firebase)
@@ -2134,7 +2128,7 @@ const DEFAULT_COURTS = [
 ];
 
 // Community state
-let fbApp, fbAuth, fbDb;
+let supabase = null;
 let commUser = null, commUserData = null;
 let courtMarkers = [];
 let activeCourts = [...DEFAULT_COURTS];
@@ -2149,9 +2143,9 @@ let proposedSport = 'surf';
 function initCommunity() {
   // Place court markers immediately with defaults
   placeCourts(DEFAULT_COURTS);
-  // Try to start Firebase
+  // Try to start Supabase
   try {
-    if (FIREBASE_CONFIG.apiKey.includes('INSERISCI')) {
+    if (!SUPABASE_CONFIG.url) {
       document.getElementById('firebase-banner').style.display = 'block';
       // Show preview placeholder
       document.getElementById('comm-preview').innerHTML = `
@@ -2161,16 +2155,15 @@ function initCommunity() {
         </div>`;
       return;
     }
-    fbApp  = firebase.initializeApp(FIREBASE_CONFIG);
-    fbAuth = firebase.auth();
-    fbDb   = firebase.firestore();
-    firebaseReady = true;
+    const { createClient } = window.supabaseModule;
+    supabase = createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
+    supabaseReady = true;
 
-    fbAuth.onAuthStateChanged(async user => {
-      if (user) {
-        commUser = user;
-        const snap = await fbDb.collection('users').doc(user.uid).get();
-        commUserData = snap.exists ? snap.data() : { name: user.email.split('@')[0], role:'user' };
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session) {
+        commUser = session.user;
+        const { data } = await supabase.from('users').select('*').eq('id', session.user.id).single();
+        commUserData = data || { id: session.user.id, email: session.user.email, name: session.user.email.split('@')[0], role: 'user' };
         onCommLoggedIn();
       } else {
         commUser = null; commUserData = null;
@@ -2203,7 +2196,12 @@ async function doRegister(e) {
   const email = document.getElementById('reg-email').value.trim();
   const pass  = document.getElementById('reg-password').value;
   try {
-    const cred = await fbAuth.createUserWithEmailAndPassword(email, pass);
+    const { data, error } = await supabase.auth.signUp({
+    email: email,
+    password: pass
+  });
+  if (error) throw error;
+  const cred = data.user;
     const role = email === ADMIN_EMAIL ? 'admin' : 'user';
     await fbDb.collection('users').doc(cred.user.uid).set({
       name, email, role, createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -2214,7 +2212,7 @@ async function doRegister(e) {
 
 async function doLogout() {
   if (sessionsUnsub) { sessionsUnsub(); sessionsUnsub = null; }
-  await fbAuth.signOut();
+  await supabase.auth.signOut();
 }
 
 function authErrMsg(code) {
