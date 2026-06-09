@@ -1301,7 +1301,7 @@ function initMap() {
     const camPos = getSavedPos('cam', cam.id, cam.lat, cam.lng);
     const m = L.marker([camPos.lat, camPos.lng], {
       icon: makeCamIcon(map.getZoom()),
-      draggable: true
+      draggable: adminMode
     })
       .on('click', () => { window.open(cam.lniUrl, '_blank'); })
       .bindTooltip(`<span style="color:#00b4ff;font-weight:700;font-size:11px;">${cam.label} · LNI</span>`,
@@ -1367,7 +1367,7 @@ function initMap() {
   const casaIcon = makeCasaIcon(map.getZoom(), casaIsOpen);
   // Use saved position if dragged before
   const casaPos = getSavedPos('poi', 'casa', CASA_CLANDESTINA.lat, CASA_CLANDESTINA.lng);
-  const casaMarker = L.marker([casaPos.lat, casaPos.lng], { icon: casaIcon, draggable: true })
+  const casaMarker = L.marker([casaPos.lat, casaPos.lng], { icon: casaIcon, draggable: adminMode })
     .bindPopup(`
       <div class="popup-inner" style="min-width:220px;">
         <div class="popup-title" style="color:#c084fc;">🏠 ${CASA_CLANDESTINA.name}</div>
@@ -1450,7 +1450,7 @@ function placeMarkers(v) {
 
     const marker = L.marker([pos.lat, pos.lng], {
       icon: makePoiIcon(wh, s.type),
-      draggable: true    // always true; we lock it via dragging.disable() outside admin mode
+      draggable: adminMode  // only draggable in admin mode
     })
     .bindPopup(popupHTML(s,wh,v.wp,v.wd,v.ws,v.wdir,v.wg,v.sh*f,v.sp), {maxWidth:260,className:''})
     .on('dragend', function(e) {
@@ -2700,7 +2700,7 @@ function placeCourts(courts) {
     const pos  = getSavedPos('court', court.id, court.lat, court.lng);
     const z    = map.getZoom();
     const icon = makeCourtIcon(court, z);
-    const m = L.marker([pos.lat, pos.lng], {icon, draggable:true})
+    const m = L.marker([pos.lat, pos.lng], {icon, draggable:adminMode})
       .bindTooltip(`<span style="color:#ffab00;font-weight:700;font-size:11px;">🏐 ${court.name}</span>`,{direction:'top',className:'',offset:[0,-18]})
       .on('click', () => { if(!adminMode){ commUser ? openBooking(court.id) : openAuth('login'); } })
       .on('dragend', function(e) {
