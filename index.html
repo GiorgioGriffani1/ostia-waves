@@ -2711,7 +2711,8 @@ function placeCourts(courts) {
       });
     // Initialize the drag handler (requires being on map once)
     m.addTo(map);
-    if (m.dragging) m.dragging.disable();  // starts locked
+    if (m.dragging) m.dragging.disable();  // ALWAYS disabled for non-admin
+    if (m.dragging && !adminMode) m.dragging.disable();  // Extra safety
     map.removeLayer(m);  // visibility managed by updateCourtMapVis
     m._courtData = court;
     courtMarkers.push(m);
@@ -2775,6 +2776,43 @@ function updateSpotVisibility(wh, ws) {
     else if (!show && map.hasLayer(m)) map.removeLayer(m);
   });
 }
+
+// Disable all dragging for non-admin at startup
+function enforceNoAdminDrag() {
+  if (adminMode) return;
+  spotMarkers.forEach(m => { if (m.dragging) m.dragging.disable(); });
+  courtMarkers.forEach(m => { if (m.dragging) m.dragging.disable(); });
+  camMarkersGlobal.forEach(m => { if (m.dragging) m.dragging.disable(); });
+  if (typeof casaMarkerRef !== 'undefined' && casaMarkerRef && casaMarkerRef.dragging) casaMarkerRef.dragging.disable();
+}
+
+// Chiama all'inizio di main()
+window.addEventListener('load', enforceNoAdminDrag);
+window.addEventListener('focus', enforceNoAdminDrag);
+map.on('moveend', enforceNoAdminDrag);
+
+
+// Enforce: no dragging for non-admin users
+function enforceNoDragForNonAdmin() {
+  if (adminMode) return;
+  // Disable all marker dragging if not admin
+  if (typeof spotMarkers !== 'undefined') {
+    spotMarkers.forEach(m => { if (m && m.dragging) m.dragging.disable(); });
+  }
+  if (typeof courtMarkers !== 'undefined') {
+    courtMarkers.forEach(m => { if (m && m.dragging) m.dragging.disable(); });
+  }
+  if (typeof camMarkersGlobal !== 'undefined') {
+    camMarkersGlobal.forEach(m => { if (m && m.dragging) m.dragging.disable(); });
+  }
+  if (typeof casaMarkerRef !== 'undefined' && casaMarkerRef && casaMarkerRef.dragging) {
+    casaMarkerRef.dragging.disable();
+  }
+}
+
+// Check on various events
+window.addEventListener('load', enforceNoDragForNonAdmin);
+setInterval(enforceNoDragForNonAdmin, 1000);  // Check ogni secondo
 
 /** Attiva/disattiva admin drag mode (Ctrl+Shift+P) */
 function toggleAdminMode() {
