@@ -2727,6 +2727,8 @@ function updateCourtMapVis() {
   const dotMin = COURTS_MIN_ZOOM - 3; // dots appear 3 levels before full icons
   courtMarkers.forEach(m => {
     const court = m._courtData || {};
+    // Assicura che il drag sia disabilitato per non-admin
+    if (!adminMode && m.dragging) m.dragging.disable();
     if (z >= dotMin || adminMode) {
       // update icon based on current zoom
       m.setIcon(makeCourtIcon(court, z));
