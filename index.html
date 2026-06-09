@@ -2326,9 +2326,15 @@ function onCommLoggedIn() {
 }
 
 function onCommLoggedOut() {
-  document.getElementById('comm-login-gate').style.display = '';
-  document.getElementById('comm-main').style.display = 'none';
+  // Mostra i campi anche senza login — il login è richiesto solo al click "Prenota"
+  document.getElementById('comm-login-gate').style.display = 'none';
+  document.getElementById('comm-main').style.display = 'block';
+  document.getElementById('comm-username').textContent = 'Ospite';
+  document.getElementById('comm-admin-wrap').style.display = 'none';
   if (sessionsUnsub) { sessionsUnsub(); sessionsUnsub = null; }
+  // Carica i campi in anteprima
+  loadCourts();
+  loadSessions();
 }
 
 // ── DATES ───────────────────────────────────────────
