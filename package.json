@@ -1,0 +1,16 @@
+{
+  "name": "ostia-waves",
+  "version": "1.0.0",
+  "description": "Community platform for organizing surf, beach, and volley activities at Ostia, Rome",
+  "type": "module",
+  "scripts": {
+    "dev": "npx wrangler pages dev",
+    "deploy": "npx wrangler pages publish"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.43.4"
+  },
+  "devDependencies": {
+    "wrangler": "^3.60.0"
+  }
+}

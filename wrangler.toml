@@ -1,0 +1,16 @@
+name = "ostia-waves"
+type = "javascript"
+compatibility_date = "2024-06-09"
+
+[env.production]
+routes = [
+  { pattern = "ostia-waves.pages.dev", zone_name = "pages.dev" }
+]
+
+[build]
+command = "npm install"
+cwd = "."
+
+[[routes]]
+pattern = "/*"
+custom_domain = false

@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OSTIA WAVES</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js" integrity="sha384-iU8HYtnGQ8Cy4zl7gbNMOhsDTTKX02BTXptVP/vqAWIaTfM7isw76iyZCsjL2eVi" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.13/dist/hls.min.js"></script>
+<!-- Supabase -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.43.4/dist/module/index.min.js" type="module"></script>
+<style>
+:root {
+  --bg: #070d1a;
+  --panel: rgba(7,13,28,0.94);
+  --border: rgba(0,180,255,0.2);
+  --accent: #00b4ff;
+  --accent2: #00ffcc;
+  --good: #00e676;
+  --moderate: #ffab00;
+  --danger: #ff5252;
+  --flat: #546e7a;
+  --text: #dff0ff;
+  --sub: #6a9eb5;
+  --card: rgba(255,255,255,0.04);
+  color-scheme: dark;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);font-family:'Segoe UI',system-ui,sans-serif;overflow:hidden;color:var(--text);}
+#map{width:100vw;height:100vh;}
+
+/* ── NAV TABS ── */
+#nav{
+  position:fixed;top:0;left:0;right:0;z-index:1100;
+  background:linear-gradient(to bottom,rgba(5,12,28,0.98) 80%,transparent);
+  padding:10px 16px 22px;
+  display:flex;align-items:center;gap:20px;
+}
+#logo{
+  font-size:22px;font-weight:900;letter-spacing:3px;
+  background:linear-gradient(135deg,#00b4ff,#00ffcc);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  text-transform:uppercase;white-space:nowrap;flex-shrink:0;cursor:pointer;
+}
+#tabs{display:flex;gap:4px;margin-left:auto;}
+.tab-btn{
+  padding:6px 16px;border-radius:6px;font-size:12px;font-weight:700;
+  letter-spacing:1px;text-transform:uppercase;cursor:pointer;
+  border:1px solid var(--border);background:rgba(255,255,255,0.04);
+  color:var(--sub);transition:all .2s;
+}
+.tab-btn.active{background:rgba(0,180,255,0.15);border-color:var(--accent);color:var(--accent);}
+.tab-btn:hover:not(.active){border-color:rgba(0,180,255,0.4);color:var(--text);}
+
+#auth-panel{
+  position:fixed;top:72px;right:10px;z-index:1050;
+  background:var(--panel);border:1px solid var(--border);
+  border-radius:10px;padding:12px 14px;backdrop-filter:blur(12px);
+  font-size:12px;
+}
+#auth-panel a{color:var(--accent);text-decoration:none;cursor:pointer;}
+#auth-panel a:hover{text-decoration:underline;}
+
+/* LOADING */
+#loading{
+  position:fixed;inset:0;background:rgba(5,10,25,.95);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  z-index:9999;gap:14px;
+}
+#ld-logo{font-size:34px;font-weight:900;letter-spacing:4px;
+  background:linear-gradient(135deg,#00b4ff,#00ffcc);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+#ld-txt{font-size:10px;color:var(--sub);letter-spacing:2px;text-transform:uppercase;}
+
+/* AUTH MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;z-index:3000;background:rgba(0,8,20,.92);backdrop-filter:blur(10px);align-items:center;justify-content:center;padding:16px;}
+.modal-overlay.open{display:flex;}
+.modal-box{background:var(--panel);border:1px solid var(--border);border-radius:14px;overflow:hidden;max-width:400px;width:100%;box-shadow:0 16px 60px rgba(0,0,0,.9);padding:28px;}
+.modal-title{font-size:18px;font-weight:800;color:var(--text);margin-bottom:20px;}
+.auth-form label{display:block;font-size:10px;color:var(--sub);letter-spacing:.8px;text-transform:uppercase;margin-bottom:5px;}
+.auth-input{width:100%;padding:10px 12px;border-radius:7px;background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--text);font-size:13px;outline:none;margin-bottom:14px;font-family:inherit;transition:border-color .2s;}
+.auth-input:focus{border-color:var(--accent);}
+.auth-submit{width:100%;padding:11px;border-radius:8px;font-size:13px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;cursor:pointer;background:linear-gradient(135deg,rgba(0,180,255,.25),rgba(0,255,204,.15));border:1px solid rgba(0,180,255,.4);color:var(--text);transition:all .2s;font-family:inherit;}
+.auth-submit:hover{background:linear-gradient(135deg,rgba(0,180,255,.4),rgba(0,255,204,.25));}
+.auth-err{font-size:11px;color:var(--danger);margin-bottom:12px;display:none;padding:8px;border-radius:5px;background:rgba(255,82,82,.08);border:1px solid rgba(255,82,82,.2);}
+.auth-err.show{display:block;}
+.auth-tabs{display:flex;gap:6px;margin-bottom:16px;}
+.auth-tab{flex:1;padding:8px;text-align:center;font-size:11px;font-weight:700;cursor:pointer;color:var(--sub);transition:all .2s;border-bottom:2px solid transparent;}
+.auth-tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div id="loading">
+  <div id="ld-logo">🌊 OSTIA WAVES</div>
+  <div id="ld-txt">Connessione in corso...</div>
+</div>
+
+<!-- MAP -->
+<div id="map"></div>
+
+<!-- TOP NAV -->
+<div id="nav">
+  <div id="logo">🌊 Ostia Waves</div>
+  <div id="tabs">
+    <button class="tab-btn active" id="tab-surf-btn" onclick="switchTab('surf')">🌊 Surf Map</button>
+    <button class="tab-btn" onclick="switchTab('events')" id="tab-events-btn">📅 Events</button>
+    <button class="tab-btn" onclick="switchTab('community')" id="tab-community-btn">👥 Community</button>
+  </div>
+  <div id="auth-panel">
+    <span id="auth-user">Caricamento...</span>
+    <a onclick="logout()" id="logout-btn" style="display:none;margin-left:10px;">Logout</a>
+  </div>
+</div>
+
+<!-- AUTH MODAL -->
+<div id="auth-modal" class="modal-overlay open">
+  <div class="modal-box">
+    <div class="modal-title">Login / Signup</div>
+    <div class="auth-tabs">
+      <div class="auth-tab active" onclick="switchAuthTab('login')">Login</div>
+      <div class="auth-tab" onclick="switchAuthTab('signup')">Signup</div>
+    </div>
+    <div id="auth-err" class="auth-err"></div>
+
+    <!-- LOGIN -->
+    <div id="login-form" class="auth-form">
+      <label>Email</label>
+      <input type="email" id="login-email" class="auth-input" placeholder="user@example.com">
+      <label>Password</label>
+      <input type="password" id="login-password" class="auth-input" placeholder="••••••••">
+      <button class="auth-submit" onclick="handleLogin()">Login</button>
+    </div>
+
+    <!-- SIGNUP -->
+    <div id="signup-form" class="auth-form" style="display:none;">
+      <label>Email</label>
+      <input type="email" id="signup-email" class="auth-input" placeholder="user@example.com">
+      <label>Username</label>
+      <input type="text" id="signup-username" class="auth-input" placeholder="your_username">
+      <label>Password</label>
+      <input type="password" id="signup-password" class="auth-input" placeholder="••••••••">
+      <button class="auth-submit" onclick="handleSignup()">Signup</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.43.4/+esm';
+
+// Initialize Supabase
+const SUPABASE_URL = 'https://myqhzmimrbtsagcktrhz.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_CPEVLQ28fVz2hYNOII6M1A_LLTo0xPb';
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+window.supabase = supabase;
+
+// Check auth state
+supabase.auth.onAuthStateChange((event, session) => {
+  const authPanel = document.getElementById('auth-panel');
+  const authModal = document.getElementById('auth-modal');
+  const logoutBtn = document.getElementById('logout-btn');
+  const authUser = document.getElementById('auth-user');
+
+  if (session) {
+    authUser.textContent = session.user.email;
+    logoutBtn.style.display = 'inline';
+    authModal.classList.remove('open');
+    document.getElementById('loading').style.display = 'none';
+  } else {
+    authUser.textContent = 'Non autenticato';
+    logoutBtn.style.display = 'none';
+    authModal.classList.add('open');
+    document.getElementById('loading').style.display = 'none';
+  }
+});
+
+// Auth functions
+window.handleLogin = async () => {
+  const email = document.getElementById('login-email').value;
+  const password = document.getElementById('login-password').value;
+  const err = document.getElementById('auth-err');
+
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    err.classList.remove('show');
+  } catch (e) {
+    err.textContent = e.message;
+    err.classList.add('show');
+  }
+};
+
+window.handleSignup = async () => {
+  const email = document.getElementById('signup-email').value;
+  const username = document.getElementById('signup-username').value;
+  const password = document.getElementById('signup-password').value;
+  const err = document.getElementById('auth-err');
+
+  try {
+    const { data, error } = await supabase.auth.signUp({ email, password });
+    if (error) throw error;
+
+    // Create profile
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .insert([{ id: data.user.id, username }]);
+
+    if (profileError) throw profileError;
+    err.classList.remove('show');
+  } catch (e) {
+    err.textContent = e.message;
+    err.classList.add('show');
+  }
+};
+
+window.logout = async () => {
+  await supabase.auth.signOut();
+};
+
+window.switchAuthTab = (tab) => {
+  const loginForm = document.getElementById('login-form');
+  const signupForm = document.getElementById('signup-form');
+  const tabs = document.querySelectorAll('.auth-tab');
+
+  tabs.forEach(t => t.classList.remove('active'));
+  event.target.classList.add('active');
+
+  if (tab === 'login') {
+    loginForm.style.display = 'block';
+    signupForm.style.display = 'none';
+  } else {
+    loginForm.style.display = 'none';
+    signupForm.style.display = 'block';
+  }
+};
+
+window.switchTab = (tab) => {
+  console.log('Switch to:', tab);
+};
+</script>
+
+</body>
+</html>
