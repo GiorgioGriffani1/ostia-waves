@@ -1910,6 +1910,8 @@ const cachedTokens = {};
 const CORS_PROXIES = [
   'https://api.allorigins.win/get?url=',
   'https://corsproxy.io/?url=',
+  'https://cors-anywhere.herokuapp.com/',
+  'https://cors.bridged.cc/?url=',
 ];
 
 function wcamSetMsg(msg, sub='', spin=false) {
@@ -1928,9 +1930,15 @@ async function fetchTokenForCam(cam) {
       const data = await resp.json();
       const body = data.contents || (typeof data === 'string' ? data : JSON.stringify(data));
       const m = body.match(/livee?\.m3u8\?a=([\w\-]+)/);
-      if (m) return m[1];
-    } catch(e) { /* try next proxy */ }
+      if (m) {
+        console.log(`✓ Token webcam trovato per ${cam.id}:`, m[1]);
+        return m[1];
+      }
+    } catch(e) { 
+      console.warn(`CORS proxy fallito (${proxy}):`, e.message);
+    }
   }
+  console.warn(`⚠ Token webcam non trovato per ${cam.id} - usando fallback demo`);
   return null;
 }
 
