@@ -1,0 +1,3008 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OSTIA WAVES</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js" integrity="sha384-iU8HYtnGQ8Cy4zl7gbNMOhsDTTKX02BTXptVP/vqAWIaTfM7isw76iyZCsjL2eVi" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.13/dist/hls.min.js"></script>
+<!-- Firebase 10 compat -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>
+:root {
+  --bg: #070d1a;
+  --panel: rgba(7,13,28,0.94);
+  --border: rgba(0,180,255,0.2);
+  --accent: #00b4ff;
+  --accent2: #00ffcc;
+  --good: #00e676;
+  --moderate: #ffab00;
+  --danger: #ff5252;
+  --flat: #546e7a;
+  --text: #dff0ff;
+  --sub: #6a9eb5;
+  --card: rgba(255,255,255,0.04);
+  color-scheme: dark;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);font-family:'Segoe UI',system-ui,sans-serif;overflow:hidden;color:var(--text);}
+#map{width:100vw;height:100vh;}
+
+/* ── NAV TABS ── */
+#nav{
+  position:fixed;top:0;left:0;right:0;z-index:1100;
+  background:linear-gradient(to bottom,rgba(5,12,28,0.98) 80%,transparent);
+  padding:10px 16px 22px;
+  display:flex;align-items:center;gap:20px;
+}
+#logo{
+  font-size:22px;font-weight:900;letter-spacing:3px;
+  background:linear-gradient(135deg,#00b4ff,#00ffcc);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  text-transform:uppercase;white-space:nowrap;flex-shrink:0;
+}
+#tabs{display:flex;gap:4px;margin-left:auto;}
+.tab-btn{
+  padding:6px 16px;border-radius:6px;font-size:12px;font-weight:700;
+  letter-spacing:1px;text-transform:uppercase;cursor:pointer;
+  border:1px solid var(--border);background:rgba(255,255,255,0.04);
+  color:var(--sub);transition:all .2s;
+}
+.tab-btn.active{background:rgba(0,180,255,0.15);border-color:var(--accent);color:var(--accent);}
+.tab-btn:hover:not(.active){border-color:rgba(0,180,255,0.4);color:var(--text);}
+#src-bar{display:flex;gap:5px;flex-wrap:wrap;}
+.src{padding:2px 8px;border-radius:4px;font-size:9px;letter-spacing:1px;
+  text-transform:uppercase;background:rgba(0,180,255,0.08);
+  border:1px solid var(--border);color:var(--sub);}
+.src.live{border-color:var(--accent2);color:var(--accent2);}
+
+/* ── SURF VIEW ── */
+#surf-view{position:relative;}
+
+/* SIDE PANEL */
+#panel{
+  position:fixed;top:72px;left:10px;z-index:1000;
+  width:260px;background:var(--panel);border:1px solid var(--border);
+  border-radius:12px;overflow:hidden;backdrop-filter:blur(16px);
+  box-shadow:0 8px 40px rgba(0,0,0,.7);
+}
+#panel-tabs{display:flex;border-bottom:1px solid var(--border);}
+.ptab{
+  flex:1;padding:8px 4px;text-align:center;font-size:10px;font-weight:700;
+  letter-spacing:.8px;text-transform:uppercase;cursor:pointer;color:var(--sub);
+  transition:all .2s;
+}
+.ptab.active{color:var(--accent);background:rgba(0,180,255,0.08);}
+.ptab-content{display:none;padding:12px 14px;}
+.ptab-content.active{display:block;}
+
+/* metrics */
+.mrow{display:flex;align-items:center;justify-content:space-between;
+  padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04);}
+.mrow:last-child{border-bottom:none;}
+.mlabel{font-size:10px;color:var(--sub);}
+.mval{font-size:13px;font-weight:700;}
+.mu{font-size:9px;color:var(--sub);font-weight:400;margin-left:2px;}
+
+.cond-bar{margin-top:10px;padding:9px;border-radius:8px;text-align:center;
+  background:rgba(0,0,0,.2);border:1px solid var(--border);}
+.cond-lbl{font-size:9px;color:var(--sub);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:3px;}
+.cond-val{font-size:16px;font-weight:900;letter-spacing:1px;}
+
+/* surfline card */
+.sl-card{
+  border:1px solid rgba(0,180,255,0.25);border-radius:8px;
+  padding:10px 12px;background:rgba(0,180,255,0.05);
+  text-decoration:none;display:block;transition:all .2s;
+}
+.sl-card:hover{border-color:var(--accent);background:rgba(0,180,255,0.1);}
+.sl-title{font-size:11px;font-weight:700;color:var(--accent);margin-bottom:6px;letter-spacing:.5px;}
+.sl-row{display:flex;justify-content:space-between;font-size:11px;color:var(--text);padding:2px 0;}
+.sl-row span{color:var(--sub);font-size:10px;}
+.sl-stars{color:#ffab00;font-size:14px;margin-top:4px;}
+.sl-link{
+  display:inline-block;margin-top:8px;padding:4px 12px;
+  border-radius:4px;font-size:10px;font-weight:700;letter-spacing:1px;
+  text-transform:uppercase;background:rgba(0,180,255,0.15);
+  color:var(--accent);border:1px solid rgba(0,180,255,0.3);
+  text-decoration:none;transition:all .2s;
+}
+.sl-link:hover{background:rgba(0,180,255,0.3);}
+
+/* windguru */
+#wg-frame{width:100%;height:280px;border:none;border-radius:4px;
+  filter:invert(1) hue-rotate(180deg);opacity:.9;}
+.wg-note{font-size:9px;color:var(--sub);text-align:center;margin-top:6px;padding-top:6px;
+  border-top:1px solid var(--border);}
+
+/* LEGEND */
+#legend{
+  position:fixed;top:72px;right:10px;z-index:1000;
+  background:var(--panel);border:1px solid var(--border);
+  border-radius:10px;padding:10px 12px;backdrop-filter:blur(12px);width:148px;
+}
+.leg-ttl{font-size:9px;color:var(--sub);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px;}
+.leg-item{display:flex;align-items:center;gap:6px;font-size:10px;color:var(--text);margin-bottom:4px;}
+.leg-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+.leg-sep{height:1px;background:var(--border);margin:6px 0;}
+
+/* COMPASS */
+#compass{
+  position:fixed;bottom:44px;right:10px;z-index:1000;
+  background:var(--panel);border:1px solid var(--border);
+  border-radius:50%;width:72px;height:72px;
+  display:flex;align-items:center;justify-content:center;
+  backdrop-filter:blur(12px);
+  transition:bottom .25s ease;
+}
+
+/* CONTROLS */
+#controls{
+  position:fixed;top:200px;right:10px;z-index:1000;
+  display:flex;flex-direction:column;gap:6px;
+}
+.ctrl-btn{
+  padding:7px 10px;border-radius:8px;font-size:10px;font-weight:700;
+  letter-spacing:.8px;text-transform:uppercase;cursor:pointer;
+  border:1px solid var(--border);background:var(--panel);color:var(--sub);
+  transition:all .2s;text-align:center;
+}
+.ctrl-btn:hover{border-color:var(--accent);color:var(--accent);}
+.ctrl-btn.on{border-color:var(--accent2);color:var(--accent2);}
+
+/* FORECAST CHART */
+#fchart-panel{
+  position:fixed;top:72px;left:282px;z-index:1000;
+  background:var(--panel);border:1px solid var(--border);
+  border-radius:12px;padding:12px;backdrop-filter:blur(12px);
+  width:300px;display:none;
+}
+#fchart-panel.open{display:block;}
+#fchart-ttl{font-size:10px;color:var(--accent);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px;}
+
+/* SCHOOLS BAR */
+#schools{
+  position:fixed;bottom:0;left:0;right:0;z-index:1000;
+  background:var(--panel);border-top:1px solid var(--border);
+  backdrop-filter:blur(16px);
+}
+#schools-hdr{
+  padding:8px 14px;display:flex;align-items:center;justify-content:space-between;
+  border-bottom:1px solid rgba(255,255,255,0.05);cursor:pointer;
+}
+#schools-ttl{font-size:10px;font-weight:700;color:var(--accent2);letter-spacing:1.5px;text-transform:uppercase;}
+#schools-toggle{font-size:10px;color:var(--sub);}
+#schools-body{display:none;padding:8px;gap:6px;overflow-x:auto;}
+#schools-body::-webkit-scrollbar{height:3px;}
+#schools-body::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+.sc-card{
+  flex:0 0 auto;background:var(--card);border:1px solid var(--border);
+  border-radius:8px;padding:7px 10px;min-width:150px;text-decoration:none;
+  cursor:pointer;
+}
+.sc-card:hover{border-color:var(--accent);background:rgba(0,180,255,0.08);}
+.sc-name{font-size:11px;font-weight:700;color:var(--text);}
+.sc-meta{font-size:9px;color:var(--sub);margin-top:2px;}
+.sc-links{display:flex;gap:4px;margin-top:5px;}
+.sc-link{
+  font-size:9px;padding:2px 5px;border-radius:3px;text-decoration:none;
+  font-weight:700;letter-spacing:.5px;text-transform:uppercase;
+}
+.ig{background:rgba(225,48,108,.15);color:#e1306c;border:1px solid rgba(225,48,108,.3);}
+.fb{background:rgba(66,103,178,.15);color:#4267b2;border:1px solid rgba(66,103,178,.3);}
+.st{background:rgba(252,76,2,.15);color:#fc4c02;border:1px solid rgba(252,76,2,.3);}
+.ext{background:rgba(0,180,255,.15);color:var(--accent);border:1px solid rgba(0,180,255,.3);}
+.sc-tab{padding:3px 9px;border-radius:6px;font-size:9px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--sub);white-space:nowrap;transition:all .2s;}
+.sc-tab.active{background:rgba(0,180,255,.14);border-color:rgba(0,180,255,.4);color:var(--accent);}
+.sc-tab[data-cat="beach"].active{background:rgba(255,171,0,.14);border-color:rgba(255,171,0,.4);color:#ffab00;}
+
+/* ── WEBCAM MODAL ── */
+#wcam-modal{
+  display:none;position:fixed;inset:0;z-index:2000;
+  background:rgba(0,8,20,.88);backdrop-filter:blur(8px);
+  align-items:center;justify-content:center;
+}
+#wcam-modal.open{display:flex;}
+#wcam-box{
+  background:var(--panel);border:1px solid var(--border);
+  border-radius:14px;overflow:hidden;width:740px;max-width:95vw;
+  box-shadow:0 16px 60px rgba(0,0,0,.9);
+}
+#wcam-hdr{
+  padding:12px 16px;background:rgba(0,180,255,.06);
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+}
+#wcam-title{font-size:13px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:8px;}
+#wcam-close{
+  width:28px;height:28px;border-radius:50%;border:1px solid var(--border);
+  background:transparent;color:var(--sub);cursor:pointer;font-size:16px;
+  display:flex;align-items:center;justify-content:center;transition:all .2s;
+}
+#wcam-close:hover{border-color:var(--danger);color:var(--danger);}
+#wcam-frame{position:relative;background:#000;}
+#wcam-frame iframe{width:100%;height:380px;border:none;display:block;}
+#wcam-footer{padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;}
+#wcam-info{font-size:10px;color:var(--sub);line-height:1.6;}
+.wcam-link{
+  display:inline-block;padding:5px 14px;border-radius:5px;
+  font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;
+  text-decoration:none;border:1px solid var(--border);color:var(--accent);
+  background:rgba(0,180,255,.1);white-space:nowrap;transition:all .2s;
+}
+.wcam-link:hover{background:rgba(0,180,255,.2);}
+.wcam-tab-btn.active{background:rgba(0,180,255,.18)!important;border-color:rgba(0,180,255,.5)!important;color:#00b4ff!important;}
+
+/* ── EVENTS VIEW ── */
+#events-view{
+  display:none;position:fixed;top:52px;left:0;right:0;bottom:0;
+  background:var(--bg);overflow-y:auto;padding:20px;z-index:900;
+}
+#events-view.active{display:block;}
+#ev-header{margin-bottom:20px;}
+#ev-title{font-size:20px;font-weight:900;color:var(--text);letter-spacing:1px;}
+#ev-sub{font-size:12px;color:var(--sub);margin-top:4px;}
+#ev-src{display:flex;gap:8px;margin-top:8px;align-items:center;flex-wrap:wrap;}
+#ev-src a{color:var(--accent);font-size:11px;text-decoration:none;}
+#ev-src a:hover{text-decoration:underline;}
+#ev-days{display:flex;gap:12px;flex-wrap:wrap;}
+.ev-day{flex:1 1 200px;min-width:180px;}
+.ev-day-hdr{
+  padding:8px 12px;border-radius:8px 8px 0 0;
+  background:linear-gradient(135deg,rgba(0,180,255,.12),rgba(0,255,204,.06));
+  border:1px solid var(--border);border-bottom:none;
+  display:flex;align-items:baseline;gap:8px;
+}
+.ev-day-name{font-size:13px;font-weight:800;color:var(--text);}
+.ev-day-date{font-size:10px;color:var(--sub);}
+.ev-list{border:1px solid var(--border);border-radius:0 0 8px 8px;overflow:hidden;min-height:80px;}
+.ev-card{
+  padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.04);
+  transition:background .15s;text-decoration:none;display:block;
+}
+.ev-card:last-child{border-bottom:none;}
+.ev-card:hover{background:rgba(0,180,255,.06);}
+.ev-card-title{font-size:12px;font-weight:700;color:var(--text);line-height:1.3;}
+.ev-card-venue{font-size:10px;color:var(--sub);margin-top:2px;}
+.ev-card-time{font-size:10px;color:var(--accent2);margin-top:2px;}
+.ev-card-genre{
+  display:inline-block;margin-top:4px;padding:2px 6px;border-radius:3px;
+  font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;
+  background:rgba(0,180,255,.1);color:var(--accent);border:1px solid rgba(0,180,255,.2);
+}
+.ev-empty{padding:20px 12px;text-align:center;font-size:11px;color:var(--sub);}
+.ev-loading{padding:20px 12px;text-align:center;font-size:11px;color:var(--sub);}
+
+#ev-ra-btn{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:8px 18px;border-radius:8px;font-size:12px;font-weight:700;
+  letter-spacing:1px;text-transform:uppercase;text-decoration:none;
+  background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--text);
+  transition:all .2s;margin-top:16px;
+}
+#ev-ra-btn:hover{background:rgba(0,180,255,.15);border-color:var(--accent);color:var(--accent);}
+
+/* LOADING */
+#loading{
+  position:fixed;inset:0;background:rgba(5,10,25,.95);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  z-index:9999;gap:14px;
+}
+#ld-logo{font-size:34px;font-weight:900;letter-spacing:4px;
+  background:linear-gradient(135deg,#00b4ff,#00ffcc);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+#ld-bar{width:200px;height:2px;background:rgba(0,180,255,.15);border-radius:2px;overflow:hidden;}
+#ld-fill{height:100%;width:0;background:linear-gradient(90deg,#00b4ff,#00ffcc);transition:width .4s;}
+#ld-txt{font-size:10px;color:var(--sub);letter-spacing:2px;text-transform:uppercase;}
+#ld-sim{font-size:11px;color:rgba(106,158,181,.55);letter-spacing:.3px;font-style:italic;text-align:center;max-width:300px;min-height:16px;}
+
+/* Leaflet overrides */
+.leaflet-popup-content-wrapper{
+  background:var(--panel)!important;border:1px solid var(--border)!important;
+  border-radius:12px!important;box-shadow:0 8px 32px rgba(0,0,0,.8)!important;
+  backdrop-filter:blur(12px);
+}
+.leaflet-popup-tip{background:var(--panel)!important;}
+.leaflet-popup-content{color:var(--text)!important;margin:0!important;width:auto!important;}
+.popup-inner{padding:12px 14px;min-width:210px;}
+.popup-title{font-size:14px;font-weight:800;margin-bottom:1px;}
+.popup-sub{font-size:9px;color:var(--sub);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;}
+.popup-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px;}
+.pstat{background:var(--card);border-radius:6px;padding:7px;}
+.pstat-lbl{font-size:9px;color:var(--sub);margin-bottom:2px;text-transform:uppercase;letter-spacing:.8px;}
+.pstat-val{font-size:15px;font-weight:800;}
+.pstat-u{font-size:9px;color:var(--sub);}
+.pcond{text-align:center;padding:7px;border-radius:6px;font-size:12px;font-weight:800;
+  letter-spacing:1px;text-transform:uppercase;}
+.popup-note{margin-top:6px;padding:7px;border-radius:5px;font-size:10px;
+  color:var(--sub);background:rgba(255,255,255,.03);line-height:1.5;}
+.leaflet-control-zoom{display:none!important;}
+
+@keyframes pulse{0%,100%{transform:scale(1);}50%{transform:scale(1.18);}}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* ── FILOSOFIA MODAL ── */
+#filo-modal{
+  display:none;position:fixed;inset:0;z-index:3000;
+  background:rgba(0,5,15,.92);backdrop-filter:blur(12px);
+  align-items:center;justify-content:center;
+}
+#filo-modal.open{display:flex;}
+#filo-box{
+  background:linear-gradient(145deg,rgba(7,13,28,.98),rgba(0,20,40,.98));
+  border:1px solid rgba(0,180,255,.35);border-radius:18px;
+  max-width:520px;width:92%;padding:36px 40px;
+  box-shadow:0 0 80px rgba(0,180,255,.12),0 24px 60px rgba(0,0,0,.9);
+  position:relative;
+}
+#filo-close{
+  position:absolute;top:14px;right:16px;
+  background:none;border:none;color:var(--sub);
+  font-size:20px;cursor:pointer;line-height:1;
+}
+#filo-close:hover{color:var(--text);}
+#filo-eyebrow{
+  font-size:10px;letter-spacing:3px;text-transform:uppercase;
+  color:var(--accent2);margin-bottom:14px;
+}
+#filo-title{
+  font-size:26px;font-weight:900;letter-spacing:1px;
+  background:linear-gradient(135deg,#00b4ff,#00ffcc);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  margin-bottom:20px;line-height:1.2;
+}
+#filo-body{font-size:14px;color:var(--text);line-height:1.8;}
+#filo-body p{margin-bottom:14px;}
+#filo-body strong{color:var(--accent2);}
+#filo-body em{color:var(--accent);font-style:normal;}
+#filo-cta{
+  margin-top:24px;padding-top:18px;border-top:1px solid var(--border);
+  font-size:12px;color:var(--sub);line-height:1.6;
+}
+#filo-cta a{color:var(--accent);text-decoration:none;}
+#filo-cta a:hover{text-decoration:underline;}
+#filo-hint{
+  font-size:9px;color:rgba(0,180,255,.2);
+  text-align:right;margin-top:4px;letter-spacing:1px;
+}
+
+/* logo click hint */
+#logo{cursor:default;user-select:none;}
+#logo.ticking{-webkit-text-fill-color:#00b4ff!important;animation:logotick .15s ease-out;}
+@keyframes logotick{0%{transform:scale(1.06);}100%{transform:scale(1);}}
+
+/* ══ COMMUNITY ══ */
+#community-view{
+  display:none;position:fixed;top:52px;left:0;right:0;bottom:0;
+  background:var(--bg);overflow-y:auto;padding:20px;z-index:900;
+}
+#community-view.active{display:block;}
+.comm-header{margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;}
+.comm-title{font-size:20px;font-weight:900;color:var(--text);letter-spacing:1px;}
+.comm-sub{font-size:12px;color:var(--sub);margin-top:3px;}
+.comm-user-badge{display:flex;align-items:center;gap:8px;padding:6px 14px;border-radius:20px;background:rgba(0,180,255,.1);border:1px solid var(--border);font-size:12px;color:var(--text);}
+.comm-user-badge button{background:none;border:none;color:var(--sub);cursor:pointer;font-size:10px;padding:0 0 0 8px;letter-spacing:.5px;text-transform:uppercase;transition:color .2s;}
+.comm-user-badge button:hover{color:var(--danger);}
+#comm-login-gate{text-align:center;padding:60px 20px;}
+#comm-login-gate .gate-title{font-size:24px;font-weight:900;color:var(--text);margin-bottom:10px;}
+#comm-login-gate .gate-sub{font-size:14px;color:var(--sub);margin-bottom:30px;line-height:1.8;}
+.comm-section{margin-bottom:28px;}
+.comm-section-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border);}
+.comm-section-title{font-size:13px;font-weight:800;color:var(--accent);letter-spacing:1px;text-transform:uppercase;}
+.comm-grid{display:flex;gap:12px;flex-wrap:wrap;}
+.session-card{flex:1 1 220px;min-width:200px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;transition:border-color .2s;position:relative;}
+.session-card:hover{border-color:rgba(0,180,255,.35);}
+.sport-badge{display:inline-block;padding:3px 8px;border-radius:4px;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;}
+.badge-surf{background:rgba(0,180,255,.15);color:var(--accent);border:1px solid rgba(0,180,255,.25);}
+.badge-volley{background:rgba(255,171,0,.12);color:#ffab00;border:1px solid rgba(255,171,0,.25);}
+.sc-spot{font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;}
+.sc-when{font-size:11px;color:var(--sub);margin-bottom:5px;}
+.sc-who{font-size:11px;color:var(--accent2);}
+.sc-note-comm{font-size:10px;color:var(--sub);margin-top:6px;font-style:italic;}
+.mine-tag{position:absolute;top:10px;right:10px;font-size:9px;color:var(--sub);background:rgba(255,255,255,.06);padding:2px 6px;border-radius:3px;}
+.join-btn{display:inline-block;margin-top:8px;padding:4px 12px;border-radius:4px;font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;background:rgba(0,255,204,.12);color:var(--accent2);border:1px solid rgba(0,255,204,.25);cursor:pointer;transition:all .2s;}
+.join-btn:hover{background:rgba(0,255,204,.25);}
+.court-card{flex:1 1 260px;min-width:240px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px;transition:border-color .2s;cursor:pointer;}
+.court-card:hover:not(.blocked){border-color:rgba(255,171,0,.5);}
+.court-card.blocked{opacity:.5;cursor:not-allowed;}
+.court-name{font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;}
+.court-meta{font-size:10px;color:var(--sub);margin-bottom:10px;}
+.court-slots-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+.court-slot{padding:6px 8px;border-radius:6px;font-size:10px;border:1px solid rgba(255,255,255,.06);background:rgba(255,255,255,.02);display:flex;align-items:center;gap:5px;min-height:32px;}
+.court-slot.free{border-color:rgba(0,230,118,.3);background:rgba(0,230,118,.04);color:var(--good);}
+.court-slot.taken{border-color:rgba(0,180,255,.18);color:var(--text);}
+.court-slot.mine{border-color:rgba(0,255,204,.4);background:rgba(0,255,204,.07);color:var(--accent2);}
+.court-status-bar{margin-top:10px;padding:5px 8px;border-radius:5px;font-size:10px;font-weight:700;text-align:center;}
+.court-status-bar.full{background:rgba(0,230,118,.1);color:var(--good);border:1px solid rgba(0,230,118,.2);}
+.court-status-bar.partial{background:rgba(0,180,255,.08);color:var(--accent);border:1px solid rgba(0,180,255,.15);}
+.court-status-bar.blocked{background:rgba(255,82,82,.08);color:var(--danger);border:1px solid rgba(255,82,82,.2);}
+.propose-btn{padding:8px 18px;border-radius:8px;font-size:12px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;cursor:pointer;background:rgba(0,255,204,.12);color:var(--accent2);border:1px solid rgba(0,255,204,.25);transition:all .2s;}
+.propose-btn:hover{background:rgba(0,255,204,.2);}
+.admin-btn{padding:6px 14px;border-radius:7px;font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;cursor:pointer;background:rgba(255,171,0,.1);color:#ffab00;border:1px solid rgba(255,171,0,.25);transition:all .2s;}
+.admin-btn:hover{background:rgba(255,171,0,.2);}
+.firebase-banner{padding:10px 14px;border-radius:8px;margin-bottom:16px;background:rgba(255,171,0,.07);border:1px solid rgba(255,171,0,.2);font-size:11px;color:#ffab00;line-height:1.6;}
+.date-selector{display:flex;gap:6px;margin-bottom:14px;}
+.date-btn{padding:6px 12px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;border:1px solid var(--border);background:rgba(255,255,255,.04);color:var(--sub);transition:all .2s;}
+.date-btn.active{background:rgba(0,180,255,.15);border-color:var(--accent);color:var(--accent);}
+
+/* GENERIC MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;z-index:3000;background:rgba(0,8,20,.92);backdrop-filter:blur(10px);align-items:center;justify-content:center;padding:16px;}
+.modal-overlay.open{display:flex;}
+.modal-box{background:var(--panel);border:1px solid var(--border);border-radius:14px;overflow:hidden;width:100%;box-shadow:0 16px 60px rgba(0,0,0,.9);max-height:90vh;display:flex;flex-direction:column;}
+.modal-hdr{padding:14px 18px;background:rgba(0,180,255,.05);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.modal-title{font-size:14px;font-weight:800;color:var(--text);}
+.modal-close{width:28px;height:28px;border-radius:50%;border:1px solid var(--border);background:transparent;color:var(--sub);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:all .2s;}
+.modal-close:hover{border-color:var(--danger);color:var(--danger);}
+.modal-body{padding:18px;overflow-y:auto;}
+
+/* AUTH */
+.auth-tabs{display:flex;border-bottom:1px solid var(--border);margin-bottom:16px;}
+.auth-tab{flex:1;padding:8px;text-align:center;font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;cursor:pointer;color:var(--sub);transition:all .2s;border-bottom:2px solid transparent;}
+.auth-tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+.auth-form label{display:block;font-size:10px;color:var(--sub);letter-spacing:.8px;text-transform:uppercase;margin-bottom:5px;}
+.auth-input{width:100%;padding:10px 12px;border-radius:7px;background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--text);font-size:13px;outline:none;margin-bottom:14px;font-family:inherit;transition:border-color .2s;}
+.auth-input:focus{border-color:var(--accent);}
+.auth-submit{width:100%;padding:11px;border-radius:8px;font-size:13px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;cursor:pointer;background:linear-gradient(135deg,rgba(0,180,255,.25),rgba(0,255,204,.15));border:1px solid rgba(0,180,255,.4);color:var(--text);transition:all .2s;font-family:inherit;}
+.auth-submit:hover{background:linear-gradient(135deg,rgba(0,180,255,.4),rgba(0,255,204,.25));}
+.auth-err{font-size:11px;color:var(--danger);margin-bottom:12px;display:none;padding:8px;border-radius:5px;background:rgba(255,82,82,.08);border:1px solid rgba(255,82,82,.2);}
+.auth-err.show{display:block;}
+.auth-info{font-size:10px;color:var(--sub);text-align:center;margin-top:10px;line-height:1.6;}
+
+/* BOOKING */
+.booking-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;}
+.book-slot{padding:12px;border-radius:8px;border:1px solid rgba(255,255,255,.07);background:rgba(255,255,255,.02);transition:all .2s;}
+.book-slot .slot-num{font-size:9px;color:var(--sub);letter-spacing:1px;text-transform:uppercase;margin-bottom:5px;}
+.book-slot .slot-name{font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px;}
+.book-slot button{width:100%;padding:5px;border-radius:5px;font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;cursor:pointer;border:none;transition:all .2s;font-family:inherit;}
+.book-slot.free{border-color:rgba(0,230,118,.25);}
+.book-slot.taken{border-color:rgba(0,180,255,.15);}
+.book-slot.mine{border-color:rgba(0,255,204,.35);background:rgba(0,255,204,.04);}
+.slot-book{background:rgba(0,230,118,.15);color:var(--good);}
+.slot-book:hover{background:rgba(0,230,118,.28);}
+.slot-cancel{background:rgba(255,82,82,.12);color:var(--danger);}
+.slot-cancel:hover{background:rgba(255,82,82,.22);}
+.court-full-banner{padding:11px;border-radius:8px;text-align:center;margin-bottom:12px;background:rgba(0,230,118,.1);border:1px solid rgba(0,230,118,.3);font-size:12px;font-weight:700;color:var(--good);}
+.chat-open-btn{width:100%;padding:11px;border-radius:8px;font-size:13px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;cursor:pointer;background:linear-gradient(135deg,rgba(0,230,118,.2),rgba(0,255,204,.12));border:1px solid rgba(0,230,118,.4);color:var(--good);transition:all .2s;font-family:inherit;}
+.chat-open-btn:hover{background:linear-gradient(135deg,rgba(0,230,118,.32),rgba(0,255,204,.2));}
+
+/* CHAT */
+#chat-messages{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:8px;min-height:0;}
+#chat-messages::-webkit-scrollbar{width:3px;}
+#chat-messages::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+.chat-msg{max-width:78%;padding:8px 12px;border-radius:10px;font-size:12px;line-height:1.5;}
+.chat-msg.mine{align-self:flex-end;background:rgba(0,180,255,.2);border:1px solid rgba(0,180,255,.3);border-bottom-right-radius:3px;}
+.chat-msg.theirs{align-self:flex-start;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.07);border-bottom-left-radius:3px;}
+.chat-msg .msg-author{font-size:9px;color:var(--sub);margin-bottom:3px;font-weight:700;letter-spacing:.5px;}
+.chat-msg .msg-text{color:var(--text);}
+.chat-msg .msg-time{font-size:9px;color:rgba(106,158,181,.4);margin-top:3px;text-align:right;}
+.chat-system-msg{text-align:center;font-size:10px;color:var(--sub);padding:6px;font-style:italic;}
+.chat-input-row{display:flex;gap:8px;padding:12px 14px;border-top:1px solid var(--border);flex-shrink:0;}
+.chat-text{flex:1;padding:9px 12px;border-radius:7px;background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--text);font-size:13px;outline:none;font-family:inherit;transition:border-color .2s;}
+.chat-text:focus{border-color:var(--accent);}
+.chat-send{padding:9px 16px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;background:rgba(0,180,255,.18);border:1px solid rgba(0,180,255,.3);color:var(--accent);transition:all .2s;font-family:inherit;}
+.chat-send:hover{background:rgba(0,180,255,.32);}
+
+/* PROPOSE */
+.propose-form label{display:block;font-size:10px;color:var(--sub);letter-spacing:.8px;text-transform:uppercase;margin-bottom:5px;}
+.propose-input,.propose-select,.propose-textarea{width:100%;padding:9px 12px;border-radius:7px;background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--text);font-size:12px;outline:none;margin-bottom:12px;font-family:inherit;transition:border-color .2s;}
+.propose-input:focus,.propose-select:focus,.propose-textarea:focus{border-color:var(--accent);}
+.propose-select option{background:#0a1628;}
+.propose-textarea{height:68px;resize:vertical;}
+.sport-toggle{display:flex;gap:6px;margin-bottom:14px;}
+.sport-opt{flex:1;padding:9px;text-align:center;border-radius:7px;cursor:pointer;font-size:13px;border:1px solid var(--border);background:rgba(255,255,255,.04);transition:all .2s;}
+.sport-opt.active{border-color:var(--accent2);background:rgba(0,255,204,.1);}
+
+/* ADMIN */
+.admin-tabs{display:flex;border-bottom:1px solid var(--border);margin-bottom:14px;}
+.admin-tab-btn{padding:8px 16px;font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;cursor:pointer;color:var(--sub);transition:all .2s;border-bottom:2px solid transparent;}
+.admin-tab-btn.active{color:#ffab00;border-bottom-color:#ffab00;}
+.admin-section{display:none;}
+.admin-section.active{display:block;}
+.admin-list-item{display:flex;align-items:center;justify-content:space-between;padding:9px 10px;border-radius:7px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);margin-bottom:6px;font-size:12px;}
+.admin-list-item .item-name{font-weight:700;color:var(--text);}
+.admin-list-item .item-meta{font-size:10px;color:var(--sub);margin-top:2px;}
+.admin-actions{display:flex;gap:5px;flex-shrink:0;}
+.adm-btn{padding:4px 10px;border-radius:4px;font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;cursor:pointer;border:none;transition:all .2s;font-family:inherit;}
+.adm-del{background:rgba(255,82,82,.15);color:var(--danger);}
+.adm-del:hover{background:rgba(255,82,82,.3);}
+.adm-block{background:rgba(255,171,0,.12);color:#ffab00;}
+.adm-block:hover{background:rgba(255,171,0,.25);}
+.adm-unblock{background:rgba(0,230,118,.12);color:var(--good);}
+.adm-unblock:hover{background:rgba(0,230,118,.25);}
+.admin-create-form{margin-top:14px;padding:14px;border:1px solid var(--border);border-radius:8px;background:rgba(255,255,255,.02);}
+.admin-create-title{font-size:11px;font-weight:700;color:var(--accent);letter-spacing:1px;text-transform:uppercase;margin-bottom:12px;}
+.create-row{display:flex;gap:8px;margin-bottom:10px;}
+.create-input,.create-select{flex:1;padding:7px 10px;border-radius:5px;background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--text);font-size:12px;outline:none;font-family:inherit;}
+.create-submit{padding:8px 18px;border-radius:6px;font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;cursor:pointer;background:rgba(0,180,255,.15);border:1px solid rgba(0,180,255,.3);color:var(--accent);transition:all .2s;font-family:inherit;}
+.create-submit:hover{background:rgba(0,180,255,.28);}
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div id="loading">
+  <div id="ld-logo">🌊 OSTIA WAVES</div>
+  <div id="ld-bar"><div id="ld-fill"></div></div>
+  <div id="ld-sim" style="font-size:11px;color:rgba(106,158,181,.55);letter-spacing:.5px;font-style:italic;text-align:center;max-width:280px;min-height:16px;transition:opacity .4s;"></div>
+</div>
+
+<!-- MAP -->
+<div id="map"></div>
+
+<!-- TOP NAV -->
+<div id="nav">
+  <div id="logo" onclick="logoClick()">🌊 Ostia Waves</div>
+  <div id="src-bar">
+    <div class="src live">● Open-Meteo</div>
+    <div class="src">Surfline</div>
+    <div class="src">Windguru</div>
+    <div class="src">RA Events</div>
+    <div class="src">Webcam LNI</div>
+  </div>
+  <div id="tabs">
+    <button class="tab-btn active" id="tab-surf-btn" onclick="switchTab('surf')">🌊 Surf Map</button>
+    <button class="tab-btn" onclick="switchTab('events')" id="tab-events-btn">📅 Events <span id="ev-count" style="opacity:.6;font-size:9px"></span></button>
+    <button class="tab-btn" onclick="switchTab('community')" id="tab-community-btn">👥 Community</button>
+  </div>
+</div>
+
+<!-- ══ SURF VIEW ══ -->
+<div id="surf-view">
+
+  <!-- SIDE PANEL -->
+  <div id="panel">
+    <div id="panel-tabs">
+      <div class="ptab active" onclick="switchPtab('live')">Live</div>
+      <div class="ptab" onclick="switchPtab('surfline')">Surfline</div>
+      <div class="ptab" onclick="switchPtab('windguru')">Windguru</div>
+    </div>
+
+    <!-- LIVE tab -->
+    <div class="ptab-content active" id="pt-live">
+      <div class="mrow"><div class="mlabel">🌊 Altezza onde</div><div class="mval"><span id="m-wh">--</span><span class="mu">m</span></div></div>
+      <div class="mrow"><div class="mlabel">⏱ Periodo</div><div class="mval"><span id="m-wp">--</span><span class="mu">s</span></div></div>
+      <div class="mrow"><div class="mlabel">🧭 Dir. onde</div><div class="mval"><span id="m-wd">--</span></div></div>
+      <div class="mrow"><div class="mlabel">🌀 Swell</div><div class="mval"><span id="m-sh">--</span><span class="mu">m</span></div></div>
+      <div class="mrow"><div class="mlabel">⏳ Swell T</div><div class="mval"><span id="m-sp">--</span><span class="mu">s</span></div></div>
+      <div class="mrow"><div class="mlabel">💨 Vento</div><div class="mval"><span id="m-ws">--</span><span class="mu">km/h</span></div></div>
+      <div class="mrow"><div class="mlabel">🧭 Dir. vento</div><div class="mval"><span id="m-wdir">--</span></div></div>
+      <div class="mrow"><div class="mlabel">⚡ Raffica</div><div class="mval"><span id="m-wg">--</span><span class="mu">km/h</span></div></div>
+      <div class="cond-bar">
+        <div class="cond-lbl">Condizioni Surf</div>
+        <div class="cond-val" id="cond-txt">...</div>
+      </div>
+      <div style="margin-top:8px;font-size:9px;color:var(--sub);text-align:right" id="panel-time"></div>
+    </div>
+
+    <!-- SURFLINE tab -->
+    <div class="ptab-content" id="pt-surfline">
+      <a class="sl-card" href="https://www.surfline.com/surf-report/lido-di-ostia/6418ded793265b858517e2ab" target="_blank">
+        <div class="sl-title">🏄 Surfline — Lido di Ostia</div>
+        <div id="sl-data">
+          <div class="sl-row">Altezza: <span id="sl-h">--</span></div>
+          <div class="sl-row">Swell: <span id="sl-sw">--</span></div>
+          <div class="sl-row">Vento: <span id="sl-w">--</span></div>
+          <div class="sl-stars" id="sl-stars">★★★☆☆</div>
+          <div style="font-size:9px;color:var(--sub);margin-top:4px" id="sl-cond">Condizioni...</div>
+        </div>
+        <div class="sl-link">Apri report →</div>
+      </a>
+      <div style="margin-top:10px;padding:8px 10px;border-radius:7px;background:rgba(0,255,204,.05);border:1px solid rgba(0,255,204,.2);">
+        <div style="font-size:10px;font-weight:700;color:var(--accent2);margin-bottom:5px;">📊 Spot Guide</div>
+        <div style="font-size:10px;color:var(--sub);line-height:1.6;">
+          Tipo: Beach break<br>
+          Esposizione: W-SW<br>
+          Fondo: Sabbia<br>
+          Periodo migliore: Ott–Apr<br>
+          <a href="https://www.surfline.com/surf-report/lido-di-ostia/6418ded793265b858517e2ab/spot-guide" target="_blank" style="color:var(--accent);text-decoration:none;">→ Spot guide completa</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- WINDGURU tab -->
+    <div class="ptab-content" id="pt-windguru">
+      <div style="font-size:9px;color:var(--sub);margin-bottom:6px;letter-spacing:.8px;text-transform:uppercase;">Ostia Lido · Spot 1583</div>
+      <iframe id="wg-frame"
+        src="https://www.windguru.cz/widget/widget.php?sc=1583&uid=wglive&wj=kmh&tj=c&odj=d&fhours=48&va=0&s=0&menu=0&landing=0&iref=0"
+        scrolling="no" frameborder="0"
+        style="width:100%;height:290px;border:none;border-radius:6px;
+               filter:invert(1) hue-rotate(180deg) saturate(0.8);opacity:.92;">
+      </iframe>
+      <div class="wg-note">
+        Windguru Ostia Lido (spot 1583) — previsione 48h<br>
+        <a href="https://www.windguru.cz/1583" target="_blank" style="color:var(--accent);text-decoration:none;">→ Apri completo</a>
+        &nbsp;|&nbsp;
+        <a href="https://www.windguru.cz/49032" target="_blank" style="color:var(--accent);text-decoration:none;">→ Ostia alt.</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- LEGEND -->
+  <div id="legend">
+    <div class="leg-ttl">Qualità spot</div>
+    <div class="leg-item"><div class="leg-dot" style="background:#00e676"></div>Ottimale</div>
+    <div class="leg-item"><div class="leg-dot" style="background:#ffab00"></div>Moderato</div>
+    <div class="leg-item"><div class="leg-dot" style="background:#ff5252"></div>Pericoloso</div>
+    <div class="leg-item"><div class="leg-dot" style="background:#546e7a"></div>Piatto</div>
+    <div class="leg-sep"></div>
+    <div class="leg-ttl">Overlay</div>
+    <div class="leg-item">
+      <svg width="20" height="10"><line x1="1" y1="5" x2="14" y2="5" stroke="#00b4ff" stroke-width="2"/><polygon points="14,2 18,5 14,8" fill="#00b4ff"/></svg>
+      Vento
+    </div>
+    <div class="leg-item">
+      <svg width="20" height="10"><line x1="1" y1="5" x2="14" y2="5" stroke="#00ffcc" stroke-width="1.5" stroke-dasharray="4,2"/><polygon points="14,2 18,5 14,8" fill="#00ffcc"/></svg>
+      Onde/Swell
+    </div>
+  </div>
+
+  <!-- CONTROLS -->
+  <div id="controls">
+    <div class="ctrl-btn on" id="vec-btn" onclick="toggleVectors()">⬡ Vettori</div>
+    <div class="ctrl-btn" id="chart-btn" onclick="toggleChart()">📈 24h</div>
+  </div>
+
+  <!-- FORECAST CHART -->
+  <div id="fchart-panel">
+    <div id="fchart-ttl">📈 Previsione Onde 24h — Castel Fusano</div>
+    <canvas id="wave-canvas" height="90"></canvas>
+    <div style="display:flex;gap:12px;margin-top:5px;font-size:9px;color:var(--sub);">
+      <span style="color:#00b4ff">▬ Altezza (m)</span>
+      <span style="color:#00ffcc">▬ Periodo/2 (s)</span>
+    </div>
+  </div>
+
+  <!-- COMPASS -->
+  <div id="compass">
+    <svg id="comp-svg" width="62" height="62" viewBox="0 0 62 62">
+      <circle cx="31" cy="31" r="29" fill="rgba(0,180,255,0.06)" stroke="rgba(0,180,255,0.25)" stroke-width="1"/>
+      <text x="31" y="10" text-anchor="middle" fill="#546e7a" font-size="8" font-family="sans-serif">N</text>
+      <text x="31" y="57" text-anchor="middle" fill="#546e7a" font-size="8" font-family="sans-serif">S</text>
+      <text x="7" y="34" text-anchor="middle" fill="#546e7a" font-size="8" font-family="sans-serif">W</text>
+      <text x="55" y="34" text-anchor="middle" fill="#546e7a" font-size="8" font-family="sans-serif">E</text>
+      <g id="comp-needle" transform="rotate(0,31,31)">
+        <polygon points="31,10 28,31 31,27 34,31" fill="#00b4ff" opacity=".9"/>
+        <polygon points="31,52 28,31 31,35 34,31" fill="#546e7a" opacity=".6"/>
+      </g>
+      <text x="31" y="36" text-anchor="middle" fill="#dff0ff" font-size="8" font-family="sans-serif" font-weight="bold" id="comp-spd">--</text>
+    </svg>
+  </div>
+
+  <!-- SCHOOLS BAR -->
+  <div id="schools">
+    <div id="schools-hdr" onclick="toggleSchools()">
+      <div id="schools-ttl">🏄 Scuole & Campi — Ostia</div>
+      <div id="schools-toggle">▼ apri</div>
+    </div>
+    <!-- filter tabs -->
+    <div id="schools-tabs" style="display:none;gap:5px;padding:6px 10px 0;overflow-x:auto;">
+      <button class="sc-tab active" data-cat="all"       onclick="filterSchools('all')">Tutti</button>
+      <button class="sc-tab"        data-cat="surf"      onclick="filterSchools('surf')">🏄 Surf</button>
+      <button class="sc-tab"        data-cat="kite"      onclick="filterSchools('kite')">🪁 Kite</button>
+      <button class="sc-tab"        data-cat="windsurf"  onclick="filterSchools('windsurf')">🏄 Windsurf</button>
+      <button class="sc-tab"        data-cat="beach"     onclick="filterSchools('beach')">🏐 Beach</button>
+      <button class="sc-tab"        data-cat="links"     onclick="filterSchools('links')">🔗 Link</button>
+    </div>
+    <div id="schools-body">
+      <!-- ── SURF ── -->
+      <div class="sc-card" onclick="scCardClick(this,event)" data-cat="surf">
+        <div class="sc-name">Surf Academy Roma</div>
+        <div class="sc-meta">📍 Castel Fusano · Surf & SUP</div>
+        <div class="sc-links">
+          <a href="https://www.instagram.com/surfacademyroma" target="_blank" class="sc-link ig">IG</a>
+          <a href="https://www.facebook.com/surfacademyroma" target="_blank" class="sc-link fb">FB</a>
+        </div>
+      </div>
+      <div class="sc-card" onclick="scCardClick(this,event)" data-cat="surf">
+        <div class="sc-name">Roma Surf Club</div>
+        <div class="sc-meta">📍 Capocotta · Surf & Kite</div>
+        <div class="sc-links">
+          <a href="https://www.instagram.com/romasurfclub" target="_blank" class="sc-link ig">IG</a>
+          <a href="https://www.facebook.com/romasurfclub" target="_blank" class="sc-link fb">FB</a>
+          <a href="https://www.strava.com/clubs" target="_blank" class="sc-link st">Strava</a>
+        </div>
+      </div>
+      <div class="sc-card" onclick="scCardClick(this,event)" data-cat="surf">
+        <div class="sc-name">Lido Surf Center</div>
+        <div class="sc-meta">📍 Ostia Centro · Surf & Yoga</div>
+        <div class="sc-links">
+          <a href="https://www.instagram.com/lidosurfcenter" target="_blank" class="sc-link ig">IG</a>
+        </div>
+      </div>
+      <div class="sc-card" onclick="scCardClick(this,event)" data-cat="surf">
+        <div class="sc-name">Ostia Surf School</div>
+        <div class="sc-meta">📍 Lido di Ostia · Surf Principianti</div>
+        <div class="sc-links">
+          <a href="https://www.instagram.com/ostia_surf" target="_blank" class="sc-link ig">IG</a>
+        </div>
+      </div>
+      <!-- ── KITE ── -->
+      <div class="sc-card" onclick="scCardClick(this,event)" data-cat="kite">
+        <div class="sc-name">Kite School Ostia</div>
+        <div class="sc-meta">📍 Ostia Ponente · Kitesurf</div>
+        <div class="sc-links">
+          <a href="https://www.instagram.com/kiteschoolostia" target="_blank" class="sc-link ig">IG</a>
+          <a href="https://www.facebook.com/kiteschoolostia" target="_blank" class="sc-link fb">FB</a>
+        </div>
+      </div>
+      <div class="sc-card" onclick="scCardClick(this,event)" data-cat="kite">
+        <div class="sc-name">Capocotta Kite Center</div>
+        <div class="sc-meta">📍 Capocotta · Kite & Wing</div>
+        <div class="sc-links">
+          <a href="https://www.instagram.com/capocottakite" target="_blank" class="sc-link ig">IG</a>
+        </div>
+      </div>
+      <!-- ── WINDSURF ── -->
+      <div class="sc-card" onclick="scCardClick(this,event)" data-cat="windsurf">
+        <div class="sc-name">Windsurf Club Ostia</div>
+        <div class="sc-meta">📍 Lido di Ostia · Windsurf</div>
+        <div class="sc-links">
+          <a href="https://www.instagram.com/windsurfclubostia" target="_blank" class="sc-link ig">IG</a>
+          <a href="https://www.facebook.com/windsurfclubostia" target="_blank" class="sc-link fb">FB</a>
+        </div>
+      </div>
+      <!-- ── BEACH VOLLEY ── -->
+      <div class="sc-card" onclick="scCardClick(this,event)" data-cat="beach" style="border-color:rgba(255,171,0,.3)">
+        <div class="sc-name">🏐 <span style="color:#ffab00">Lega Navale — Campi</span></div>
+        <div class="sc-meta">📍 Porto di Ostia · 3 campi beach</div>
+        <div class="sc-links">
+          <a href="https://www.leganavaleostia.it" target="_blank" class="sc-link ext">Sito →</a>
+        </div>
+      </div>
+      <div class="sc-card" onclick="scCardClick(this,event)" data-cat="beach" style="border-color:rgba(255,171,0,.3)">
+        <div class="sc-name">🏐 <span style="color:#ffab00">Beach Volley Ostia</span></div>
+        <div class="sc-meta">📍 Lungomare · Corsi e tornei</div>
+        <div class="sc-links">
+          <a href="https://www.instagram.com/beachvolleyostia" target="_blank" class="sc-link ig">IG</a>
+          <a href="https://www.facebook.com/beachvolleyostia" target="_blank" class="sc-link fb">FB</a>
+        </div>
+      </div>
+      <div class="sc-card" onclick="scCardClick(this,event)" data-cat="beach" style="border-color:rgba(255,171,0,.3)">
+        <div class="sc-name">🏐 <span style="color:#ffab00">Ostia Beach Sport</span></div>
+        <div class="sc-meta">📍 Ostia Lido · Beach volley & tennis</div>
+        <div class="sc-links">
+          <a href="https://www.instagram.com/ostiabeachsport" target="_blank" class="sc-link ig">IG</a>
+        </div>
+      </div>
+      <div class="sc-card" onclick="scCardClick(this,event)" data-cat="beach" style="border-color:rgba(255,171,0,.3)">
+        <div class="sc-name">🏐 <span style="color:#ffab00">Castel Fusano Beach</span></div>
+        <div class="sc-meta">📍 Castel Fusano · Campi liberi</div>
+        <div class="sc-links">
+          <a href="https://www.instagram.com/castelfusanobeach" target="_blank" class="sc-link ig">IG</a>
+        </div>
+      </div>
+      <!-- ── LINK UTILI ── -->
+      <div class="sc-card" onclick="scCardClick(this,event)" data-cat="links" style="border-color:rgba(0,255,204,.25)">
+        <div class="sc-name" style="color:var(--accent2)">🌊 Strava Heatmap</div>
+        <div class="sc-meta">Attività zona Ostia</div>
+        <div class="sc-links">
+          <a href="https://www.strava.com/maps/global-heatmap#12/12.2984/41.7260" target="_blank" class="sc-link ext">Apri →</a>
+        </div>
+      </div>
+      <div class="sc-card" onclick="scCardClick(this,event)" data-cat="links" style="border-color:rgba(255,171,0,.25)">
+        <div class="sc-name" style="color:var(--moderate)">🌤 3B Meteo</div>
+        <div class="sc-meta">Previsioni Ostia Lido</div>
+        <div class="sc-links">
+          <a href="https://www.3bmeteo.com/meteo/ostia-lido" target="_blank" class="sc-link" style="background:rgba(255,171,0,.1);color:#ffab00;border:1px solid rgba(255,171,0,.3)">Apri →</a>
+        </div>
+      </div>
+      <div class="sc-card" onclick="scCardClick(this,event)" data-cat="links" style="border-color:rgba(0,180,255,.3)">
+        <div class="sc-name" style="color:var(--accent)">✈ Aeronautica Mil.</div>
+        <div class="sc-meta">Bollettino meteo mare</div>
+        <div class="sc-links">
+          <a href="https://www.meteoam.it/" target="_blank" class="sc-link ext">MeteoAM →</a>
+        </div>
+      </div>
+      <div class="sc-card" onclick="scCardClick(this,event)" data-cat="links" style="border-color:rgba(255,171,0,.25)">
+        <div class="sc-name" style="color:#ffab00">🏐 Fipav Roma</div>
+        <div class="sc-meta">Federazione — tornei e iscrizioni</div>
+        <div class="sc-links">
+          <a href="https://www.fipavroma.it" target="_blank" class="sc-link ext">Apri →</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /surf-view -->
+
+<!-- ══ WEBCAM MODAL ══ -->
+<div id="wcam-modal" onclick="closeWebcam(event)">
+  <div id="wcam-box">
+    <div id="wcam-hdr">
+      <div style="display:flex;gap:6px;margin-bottom:8px;">
+        <button class="wcam-tab-btn active" data-cam="levante" onclick="initWebcam('levante')"
+          style="flex:1;padding:5px 8px;border-radius:8px;border:1px solid rgba(0,180,255,.3);background:rgba(0,180,255,.12);color:#00b4ff;font-size:10px;font-weight:800;cursor:pointer;letter-spacing:.5px;transition:all .2s;">
+          📷 LEVANTE</button>
+        <button class="wcam-tab-btn" data-cam="ponente" onclick="initWebcam('ponente')"
+          style="flex:1;padding:5px 8px;border-radius:8px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.03);color:var(--sub);font-size:10px;font-weight:800;cursor:pointer;letter-spacing:.5px;transition:all .2s;">
+          📷 PONENTE</button>
+      </div>
+      <div id="wcam-title">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00b4ff" stroke-width="2">
+          <path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/>
+        </svg>
+        Webcam Live — Lega Navale Italiana · Ostia
+      </div>
+      <button id="wcam-close" onclick="closeWebcam()">✕</button>
+    </div>
+    <div id="wcam-frame" style="position:relative;background:#000;min-height:360px;display:flex;align-items:center;justify-content:center;">
+      <video id="wcam-video" controls autoplay muted playsinline
+        style="width:100%;max-height:400px;display:none;background:#000;">
+      </video>
+      <div id="wcam-status" style="text-align:center;padding:40px 20px;">
+        <div id="wcam-spin" style="font-size:32px;margin-bottom:12px;animation:spin 1.2s linear infinite;display:inline-block;">🌊</div>
+        <div id="wcam-msg" style="font-size:12px;color:var(--sub);letter-spacing:1px;">Connessione al feed live...</div>
+        <div id="wcam-sub" style="font-size:10px;color:rgba(106,158,181,.5);margin-top:6px;"></div>
+      </div>
+    </div>
+    <div id="wcam-footer">
+      <div id="wcam-info">
+        📍 Ostia Lido — Lega Navale Italiana · 2 telecamere<br>
+        <span style="font-size:9px;color:var(--sub);">Stream HLS via SkylineWebcams</span>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <button class="wcam-link" onclick="retryWebcam()" style="cursor:pointer;background:rgba(0,180,255,.1);">🔄 Riconnetti</button>
+        <a class="wcam-link" href="https://www.leganavaleostia.it/webcam-levante/" target="_blank">LNI →</a>
+        <a class="wcam-link" href="https://www.skylinewebcams.com/en/webcam/italia/lazio/roma/lido-ostia.html" target="_blank">SkylineWebcams →</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ EVENTS VIEW ══ -->
+<div id="events-view">
+  <div id="ev-header">
+    <div id="ev-title">📅 Eventi a Ostia &amp; Roma — prossimi 5 giorni</div>
+    <div id="ev-sub">Sorgente: Resident Advisor · ra.co/events/it/rome</div>
+    <div id="ev-src">
+      <a href="https://ra.co/events/it/rome" target="_blank">→ Apri RA Roma</a>
+      <span style="color:var(--border)">|</span>
+      <span id="ev-status" style="font-size:10px;color:var(--sub)">Caricamento...</span>
+    </div>
+  </div>
+  <div id="ev-days"></div>
+  <a id="ev-ra-btn" href="https://ra.co/events/it/rome" target="_blank">
+    🎵 Tutti gli eventi Roma su Resident Advisor →
+  </a>
+</div>
+
+<!-- ══ FILOSOFIA MODAL ══ -->
+<div id="filo-modal" onclick="filoClose(event)">
+  <div id="filo-box">
+    <button id="filo-close" onclick="filoClose()">✕</button>
+    <div id="filo-eyebrow">🌊 Ostia Waves — manifesto</div>
+    <div id="filo-title">Uscire di casa<br>dovrebbe essere facile.</div>
+    <div id="filo-body">
+      <p>
+        Hai presente quella sensazione? Lunedì scopri che sabato c'era qualcosa di
+        <strong>incredibile a due passi da te</strong> — onde buone, una serata improvvisata,
+        gente in acqua — e tu non lo sapevi.
+      </p>
+      <p>
+        Ostia Waves nasce per eliminare quella sensazione. Raccogliamo dati reali —
+        condizioni meteo e marine, attività sui social delle scuole surf, eventi in zona —
+        e li mettiamo insieme in un posto solo, per darti una risposta concreta a una
+        domanda concreta: <em>vale la pena uscire oggi?</em>
+      </p>
+      <p>
+        Non vendiamo pacchetti. Non promuoviamo brand. Non siamo marketing.
+        Siamo un tentativo di connettere <strong>community, mare, sport e serate</strong> —
+        tutto quello che trasforma Ostia da "posto dove vivere" a "posto dove stare davvero".
+      </p>
+      <p>
+        Il divertimento vero è già lì. Spesso basta sapere dove guardare.
+      </p>
+    </div>
+    <div id="filo-cta">
+      Se stai leggendo questo e ti è venuta un'idea che potrebbe migliorare il sito —
+      un'integrazione, una fonte di dati, un posto da mappare —
+      <a href="https://www.instagram.com/" target="_blank">scrivimi in DM</a>. Seriamente.
+    </div>
+    <div id="filo-hint">easter egg ·  5 click sul logo</div>
+  </div>
+</div>
+
+<!-- ══ COMMUNITY VIEW ══ -->
+<div id="community-view">
+  <div id="firebase-banner" class="firebase-banner" style="display:none">
+    ⚡ <strong>Modalità Demo</strong> — Firebase non ancora configurato. I dati sono salvati localmente nel browser e non condivisi.
+    Segui le istruzioni nel file per collegare il backend reale.
+  </div>
+
+  <!-- NOT LOGGED IN -->
+  <div id="comm-login-gate">
+    <div class="gate-title">👥 Community Ostia Waves</div>
+    <div class="gate-sub">
+      Proponiti per sessioni di surf 🏄 e beach volley 🏐<br>
+      Trova compagni, prenota i campi, coordinatevi via chat.
+    </div>
+    <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+      <button class="propose-btn" onclick="openAuth('register')">Iscriviti</button>
+      <button style="padding:8px 18px;border-radius:8px;font-size:12px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;cursor:pointer;background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--sub);transition:all .2s;" onclick="openAuth('login')">Accedi</button>
+    </div>
+    <div id="comm-preview" style="margin-top:32px;max-width:800px;margin-left:auto;margin-right:auto;"></div>
+  </div>
+
+  <!-- LOGGED IN -->
+  <div id="comm-main" style="display:none;max-width:940px;margin:0 auto;">
+    <div class="comm-header">
+      <div>
+        <div class="comm-title">👥 Community</div>
+        <div class="comm-sub">Ostia Waves · sessioni e prenotazioni</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <div id="comm-admin-wrap" style="display:none;">
+          <button class="admin-btn" onclick="openAdmin()">⚙ Admin</button>
+        </div>
+        <div class="comm-user-badge">
+          <span>👤</span>
+          <span id="comm-username">Utente</span>
+          <button onclick="doLogout()">Esci</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SURF SESSIONS -->
+    <div class="comm-section">
+      <div class="comm-section-hdr">
+        <div class="comm-section-title">🏄 Sessioni Surf</div>
+        <button class="propose-btn" onclick="openPropose('surf')">+ Proponi sessione</button>
+      </div>
+      <div id="surf-sessions-list" class="comm-grid">
+        <div style="color:var(--sub);font-size:12px;padding:20px;text-align:center;width:100%">Caricamento...</div>
+      </div>
+    </div>
+
+    <!-- BEACH VOLLEY COURTS -->
+    <div class="comm-section">
+      <div class="comm-section-hdr">
+        <div class="comm-section-title">🏐 Campi Beach Volley</div>
+        <div style="font-size:10px;color:var(--sub);">4 slot per campo · Clicca per prenotare</div>
+      </div>
+      <div class="date-selector" id="global-date-selector"></div>
+      <div id="courts-list" class="comm-grid">
+        <div style="color:var(--sub);font-size:12px;padding:20px;text-align:center;width:100%">Caricamento campi...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ AUTH MODAL ══ -->
+<div id="auth-modal" class="modal-overlay" onclick="closeModalOverlay('auth-modal',event)">
+  <div class="modal-box" style="max-width:400px;">
+    <div class="modal-hdr">
+      <div class="modal-title">🔐 Ostia Waves Community</div>
+      <button class="modal-close" onclick="closeModal('auth-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="auth-tabs">
+        <div class="auth-tab active" id="tab-login" onclick="switchAuthTab('login')">Accedi</div>
+        <div class="auth-tab" id="tab-register" onclick="switchAuthTab('register')">Iscriviti</div>
+      </div>
+      <div id="auth-err" class="auth-err"></div>
+      <form id="login-form" class="auth-form" onsubmit="doLogin(event)">
+        <label>Email</label>
+        <input class="auth-input" type="email" id="login-email" placeholder="la-tua@email.com" required>
+        <label>Password</label>
+        <input class="auth-input" type="password" id="login-password" placeholder="••••••••" required>
+        <button type="submit" class="auth-submit">Accedi →</button>
+      </form>
+      <form id="register-form" class="auth-form" style="display:none" onsubmit="doRegister(event)">
+        <label>Nome</label>
+        <input class="auth-input" type="text" id="reg-name" placeholder="Come ti chiamano in acqua" required>
+        <label>Email</label>
+        <input class="auth-input" type="email" id="reg-email" placeholder="la-tua@email.com" required>
+        <label>Password</label>
+        <input class="auth-input" type="password" id="reg-password" placeholder="min. 6 caratteri" required minlength="6">
+        <button type="submit" class="auth-submit">Iscriviti →</button>
+      </form>
+      <div class="auth-info">I dati sono usati solo per Ostia Waves. Niente spam.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ BOOKING MODAL ══ -->
+<div id="booking-modal" class="modal-overlay" onclick="closeModalOverlay('booking-modal',event)">
+  <div class="modal-box" style="max-width:480px;">
+    <div class="modal-hdr">
+      <div>
+        <div class="modal-title" id="booking-court-name">🏐 Campo</div>
+        <div style="font-size:10px;color:var(--sub);margin-top:2px;" id="booking-court-meta">Prenota il tuo slot</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('booking-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="date-selector" id="booking-date-selector"></div>
+      <div class="court-full-banner" id="court-full-banner" style="display:none;">✅ Campo completo! Chat disponibile per coordinarsi.</div>
+      <div class="booking-grid" id="booking-slots"></div>
+      <button class="chat-open-btn" id="booking-chat-btn" style="display:none;" onclick="openChatFromBooking()">💬 Apri Chat del Campo</button>
+      <div id="booking-note" style="font-size:10px;color:var(--sub);margin-top:10px;text-align:center;line-height:1.6;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ CHAT MODAL ══ -->
+<div id="chat-modal" class="modal-overlay" onclick="closeModalOverlay('chat-modal',event)">
+  <div class="modal-box" style="max-width:500px;height:520px;">
+    <div class="modal-hdr">
+      <div class="modal-title" id="chat-modal-title">💬 Chat Campo</div>
+      <button class="modal-close" onclick="closeModal('chat-modal')">✕</button>
+    </div>
+    <div id="chat-messages"></div>
+    <div class="chat-input-row">
+      <input class="chat-text" id="chat-input" type="text" placeholder="Scrivi un messaggio..." onkeydown="if(event.key==='Enter')sendChatMsg()">
+      <button class="chat-send" onclick="sendChatMsg()">Invia</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ PROPOSE SESSION MODAL ══ -->
+<div id="propose-modal" class="modal-overlay" onclick="closeModalOverlay('propose-modal',event)">
+  <div class="modal-box" style="max-width:440px;">
+    <div class="modal-hdr">
+      <div class="modal-title">+ Proponi Sessione</div>
+      <button class="modal-close" onclick="closeModal('propose-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <form class="propose-form" onsubmit="submitSession(event)">
+        <label>Sport</label>
+        <div class="sport-toggle" id="propose-sport-toggle">
+          <div class="sport-opt active" data-sport="surf" onclick="selectSport('surf')">🏄 Surf</div>
+          <div class="sport-opt" data-sport="beach_volley" onclick="selectSport('beach_volley')">🏐 Beach Volley</div>
+        </div>
+        <label>Spot / Luogo</label>
+        <select class="propose-select" id="propose-spot">
+          <option value="Porto di Roma">Porto di Roma</option>
+          <option value="Ostia Ponente">Ostia Ponente</option>
+          <option value="Lido di Ostia">Lido di Ostia</option>
+          <option value="Venezia / Stella Polare">Venezia / Stella Polare</option>
+          <option value="Castel Fusano" selected>Castel Fusano ⭐</option>
+          <option value="Capocotta">Capocotta</option>
+        </select>
+        <label>Data</label>
+        <input class="propose-input" type="date" id="propose-date" required>
+        <label>Ora</label>
+        <input class="propose-input" type="time" id="propose-time" value="09:00" required>
+        <label>Note (opzionale)</label>
+        <textarea class="propose-textarea" id="propose-note" placeholder="Livello richiesto, attrezzatura, chi portare..."></textarea>
+        <button type="submit" class="auth-submit">Proponi sessione →</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ══ ADMIN MODAL ══ -->
+<div id="admin-modal" class="modal-overlay" onclick="closeModalOverlay('admin-modal',event)">
+  <div class="modal-box" style="max-width:640px;">
+    <div class="modal-hdr">
+      <div class="modal-title">⚙ Admin Panel — Ostia Waves</div>
+      <button class="modal-close" onclick="closeModal('admin-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="admin-tabs">
+        <div class="admin-tab-btn active" onclick="switchAdminTab('users')">👥 Utenti</div>
+        <div class="admin-tab-btn" onclick="switchAdminTab('courts')">🏐 Campi</div>
+        <div class="admin-tab-btn" onclick="switchAdminTab('sessions')">🏄 Sessioni</div>
+      </div>
+      <div class="admin-section active" id="admin-users">
+        <div id="admin-users-list"><div style="color:var(--sub);font-size:12px;">Caricamento...</div></div>
+      </div>
+      <div class="admin-section" id="admin-courts">
+        <div id="admin-courts-list"></div>
+        <div class="admin-create-form">
+          <div class="admin-create-title">+ Crea nuovo campo</div>
+          <div class="create-row">
+            <input class="create-input" type="text" id="new-court-name" placeholder="Nome campo" style="flex:2">
+            <select class="create-select" id="new-court-sport">
+              <option value="beach_volley">🏐 Beach Volley</option>
+              <option value="surf">🏄 Surf spot</option>
+            </select>
+          </div>
+          <div class="create-row">
+            <input class="create-input" type="number" id="new-court-lat" placeholder="Latitudine (es. 41.7195)" step="0.0001">
+            <input class="create-input" type="number" id="new-court-lng" placeholder="Longitudine (es. 12.2935)" step="0.0001">
+          </div>
+          <button class="create-submit" onclick="adminCreateCourt()">Crea campo →</button>
+        </div>
+      </div>
+      <div class="admin-section" id="admin-sessions">
+        <div id="admin-sessions-list"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ADMIN DRAG MODE BANNER -->
+<div id="admin-mode-banner" style="
+  display:none;position:fixed;top:60px;left:50%;transform:translateX(-50%);z-index:2500;
+  background:linear-gradient(135deg,rgba(255,171,0,.97),rgba(255,140,0,.97));
+  color:#0a0800;padding:8px 22px;border-radius:20px;
+  font-size:11px;font-weight:900;letter-spacing:1.5px;text-transform:uppercase;
+  box-shadow:0 4px 24px rgba(255,171,0,.5);white-space:nowrap;user-select:none;">
+  ⚙ ADMIN DRAG MODE — Trascina le icone per spostarle &nbsp;·&nbsp; <span style="opacity:.7">Ctrl+Shift+P per uscire</span>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════
+// CONSTANTS & STATE
+// ═══════════════════════════════════════════════════
+// Surf spots — IN ACQUA, largo dalla spiaggia di Ostia (costa guarda SW)
+const SPOTS = [
+  { id:'porto',    name:'Porto di Roma',           sub:'Bocca del Tevere',    lat:41.7330, lng:12.2200, type:'advanced',     note:'Vicino alla foce — correnti forti' },
+  { id:'ponente',  name:'Ostia Ponente',            sub:'Spiaggia libera',     lat:41.7215, lng:12.2460, type:'kite',         note:'Ottimo per kitesurf con vento SW' },
+  { id:'centro',   name:'Lido di Ostia',            sub:'Zona stabilimenti',   lat:41.7160, lng:12.2620, type:'beginner',     note:'Onde brevi, ideale principianti' },
+  { id:'venezia',  name:'Venezia / Stella Polare',  sub:'Spiaggia centrale',   lat:41.7075, lng:12.2900, type:'intermediate', note:'Fondo sabbioso, onde regolari' },
+  { id:'fusano',   name:'Castel Fusano',            sub:'Surf spot principale', lat:41.6960, lng:12.3320, type:'surf',         note:'⭐ Miglior spot zona — onde pulite' },
+  { id:'capocotta',name:'Capocotta',                sub:'Kite & Surf spot',    lat:41.6820, lng:12.3720, type:'surf',         note:'🏆 Top spot surf e kite — swell W-SW' }
+];
+
+// Lega Navale — due telecamere sul lungomare
+const WEBCAMS = [
+  {
+    id: 'levante',
+    name: 'Webcam Levante LNI',
+    lat: 41.7272, lng: 12.2820,
+    lniUrl: 'https://www.leganavaleostia.it/webcam-levante/',
+    skylineUrl: 'https://www.skylinewebcams.com/webcam/italia/lazio/roma/lido-di-ostia-roma.html',
+    label: '📷 Levante'
+  },
+  {
+    id: 'ponente',
+    name: 'Webcam Ponente LNI',
+    lat: 41.7268, lng: 12.2812,
+    lniUrl: 'https://www.leganavaleostia.it/webcam-ponente/',
+    skylineUrl: 'https://www.skylinewebcams.com/webcam/italia/lazio/roma/lido-ostia.html',
+    label: '📷 Ponente'
+  }
+];
+// legacy alias
+const WEBCAM = WEBCAMS[0];
+
+// Casa Clandestina — nel tessuto urbano di Ostia Lido (non in mare!)
+const CASA_CLANDESTINA = {
+  lat: 41.7310, lng: 12.2940,
+  name: 'Casa Clandestina',
+  desc: 'Il posto. Bevute, studio, chiacchiere e piani che non si realizzano mai.',
+  note: 'Accesso solo per chi sa già dov\'è. Se stai cercando su Google Maps hai già perso.'
+};
+
+let map, vectorLayer, wData, mData, chartInst;
+let vectorsOn = true, chartOpen = false, schoolsOpen = false;
+let currentTab = 'surf';
+// Admin drag mode
+let adminMode = false;
+let spotMarkers = [];   // refs to surf/kite spot markers
+let camMarkersGlobal = [];  // refs to webcam markers (for admin drag)
+let lastWh = 0, lastWs = 0;  // last known wave height + wind speed
+
+// ═══════════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════════
+function condColor(wh) {
+  if (wh < 0.3) return { c:'#546e7a', lbl:'PIATTO', glow:false };
+  if (wh < 0.7) return { c:'#00b4ff', lbl:'PICCOLO', glow:false };
+  if (wh < 1.2) return { c:'#00e676', lbl:'🏄 OTTIMALE', glow:true };
+  if (wh < 1.8) return { c:'#ffab00', lbl:'🔥 BUONO', glow:true };
+  if (wh < 2.5) return { c:'#ff7043', lbl:'⚡ GRANDE', glow:true };
+  return { c:'#ff5252', lbl:'⚠ PERICOLOSO', glow:false };
+}
+function deg2compass(d) {
+  return ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSO','SO','OSO','O','ONO','NO','NNO'][Math.round(d/22.5)%16];
+}
+const SIMS_MSGS = [
+  "Raccogliendo le telline...",
+  "Arricciando i tentacoli dei polpi...",
+  "Chiedendo al gabbiano le previsioni...",
+  "Controllando se il bagnino è sveglio...",
+  "Calcolando la densità della schiuma...",
+  "Convincendo le onde a venire a riva...",
+  "Svuotando la sabbia dalle scarpe...",
+  "Negoziando con la medusa sulla destra...",
+  "Tastando la temperatura con il piede sinistro...",
+  "Applicando la crema solare al server...",
+  "Recuperando la ciambella gonfiabile persa...",
+  "Chiedendo al riccio di spostarsi...",
+  "Gonfiando il materassino...",
+  "Contando i granchi sul fondale...",
+  "Accordando le onde con il metronomo...",
+  "Controllando se il chiosco ha la granita al limone...",
+  "Inseguendo l'ombrellone che è volato via...",
+  "Convincendo il delfino a fare da radar...",
+  "Sgonfiando la pressione atmosferica...",
+  "Lubrificando i dati con acqua salata...",
+  "Asciugando i pixel con l'asciugamano...",
+  "Convincendo il capitano del peschereccio a condividere i dati...",
+  "Spolverando la sabbia dagli algoritmi...",
+  "Insegnando alle onde a fare la fila...",
+  "Controllando che la boa non sia andata alla deriva...",
+  "Calibrando il barometro con un polmone di riccio...",
+  "Preparando il caffè al server di Open-Meteo...",
+  "Raccogliendo le impressioni dei surfisti del mattino...",
+  "Interrogando il fondale su cosa ha visto stamattina...",
+  "Togliendo le alghe dal radar...",
+  "Chiedendo al tramonto quando ha intenzione di arrivare...",
+  "Convocando i venti di maestrale a rapporto...",
+  "Annotando la direzione delle onde su un tovagliolo bagnato...",
+  "Sincronizzando l'orologio con la marea...",
+  "Chiedendo alla lucciola di farci luce sui dati...",
+];
+let _simTimer = null;
+function startSimMsgs() {
+  const el = document.getElementById('ld-sim');
+  if (!el) return;
+  const shuffled = [...SIMS_MSGS].sort(() => Math.random() - .5);
+  let i = 0;
+  el.textContent = shuffled[0];
+  _simTimer = setInterval(() => {
+    el.style.opacity = '0';
+    setTimeout(() => {
+      i = (i + 1) % shuffled.length;
+      el.textContent = shuffled[i];
+      el.style.opacity = '1';
+    }, 400);
+  }, 6000);
+}
+function stopSimMsgs() {
+  clearInterval(_simTimer);
+  const el = document.getElementById('ld-sim');
+  if (el) { el.style.opacity = '0'; }
+}
+
+function setLoad(p, t) {
+  const fill = document.getElementById('ld-fill');
+  if (fill) fill.style.width = p+'%';
+}
+function fmtDate(iso) {
+  const d = new Date(iso);
+  const days = ['Dom','Lun','Mar','Mer','Gio','Ven','Sab'];
+  const months = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+  return { day: days[d.getDay()], date: `${d.getDate()} ${months[d.getMonth()]}`, full: d };
+}
+
+// ═══════════════════════════════════════════════════
+// MAP
+// ═══════════════════════════════════════════════════
+function initMap() {
+  map = L.map('map', { center:[41.7100,12.3000], zoom:12, zoomControl:false, attributionControl:false });
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom:18, attribution:'Esri'
+  }).addTo(map);
+  L.tileLayer('https://stamen-tiles.a.ssl.fastly.net/toner-hybrid/{z}/{x}/{y}.png', {
+    maxZoom:18, opacity:0.25
+  }).addTo(map);
+  L.control.attribution({ position:'bottomright', prefix:'Ostia Waves | Esri, Open-Meteo' }).addTo(map);
+  L.control.scale({ position:'bottomleft', imperial:false, maxWidth:120 }).addTo(map);
+
+  // WEBCAM markers — dot when zoomed out, full icon when zoomed in
+  const CAM_FULL_ZOOM = 13;
+
+  function makeCamIcon(zoom) {
+    if (zoom < CAM_FULL_ZOOM) {
+      return L.divIcon({
+        className: '',
+        html: `<div style="width:10px;height:10px;border-radius:50%;background:#ff4444;border:1.5px solid #ff8888;box-shadow:0 0 6px rgba(255,68,68,.8);"></div>`,
+        iconSize: [10,10], iconAnchor: [5,5]
+      });
+    }
+    return L.divIcon({
+      className: '',
+      html: `<div style="width:34px;height:34px;border-radius:50%;background:rgba(0,180,255,0.9);border:2px solid white;display:flex;align-items:center;justify-content:center;box-shadow:0 0 16px #00b4ff,0 0 32px #00b4ff55;cursor:pointer;font-size:15px;">📷</div>`,
+      iconSize: [34,34], iconAnchor: [17,17]
+    });
+  }
+
+  const camMarkers = WEBCAMS.map((cam, idx) => {
+    const camPos = getSavedPos('cam', cam.id, cam.lat, cam.lng);
+    const m = L.marker([camPos.lat, camPos.lng], {
+      icon: makeCamIcon(map.getZoom()),
+      draggable: true
+    })
+      .on('click', () => { if (!adminMode) openWebcam(cam.id); })
+      .bindTooltip(`<span style="color:#00b4ff;font-weight:700;font-size:11px;">${cam.label} · LNI</span>`,
+        { direction:'top', className:'', offset:[0,-18] })
+      .on('dragend', function(e) {
+        if (!adminMode) return;
+        const {lat, lng} = e.target.getLatLng();
+        savePos('cam', cam.id, lat, lng);
+        showAdminToast(`📷 ${cam.name} salvata`);
+      });
+    // addTo once to init drag handler, then stays on map (always visible)
+    m.addTo(map);
+    if (m.dragging) m.dragging.disable();
+    m._camId = cam.id;
+    camMarkersGlobal.push(m);
+    return m;
+  });
+
+  // Update cam icons on zoom
+  map.on('zoomend', () => {
+    const z = map.getZoom();
+    camMarkers.forEach(m => m.setIcon(makeCamIcon(z)));
+  });
+
+  map.on('moveend zoomend', ()=>{ if(vectorsOn && wData && mData) drawVectors(); });
+
+  // CASA CLANDESTINA — piccola, compare solo a zoom >= 14
+  const CASA_MIN_ZOOM = 14;
+  var casaMarkerRef = null; // exported for admin drag mode
+  const casaIcon = L.divIcon({
+    className:'',
+    html:`<div style="
+      width:20px;height:20px;border-radius:6px;
+      background:rgba(30,10,50,.9);
+      border:1.5px solid rgba(180,80,255,.6);
+      display:flex;align-items:center;justify-content:center;
+      box-shadow:0 0 6px rgba(180,80,255,.3);
+      cursor:pointer;font-size:11px;" title="Casa Clandestina">🏠</div>`,
+    iconSize:[20,20], iconAnchor:[10,10]
+  });
+  // Use saved position if dragged before
+  const casaPos = getSavedPos('poi', 'casa', CASA_CLANDESTINA.lat, CASA_CLANDESTINA.lng);
+  const casaMarker = L.marker([casaPos.lat, casaPos.lng], { icon: casaIcon, draggable: true })
+    .bindPopup(`
+      <div class="popup-inner" style="min-width:220px;">
+        <div class="popup-title" style="color:#c084fc;">🏠 ${CASA_CLANDESTINA.name}</div>
+        <div class="popup-sub" style="color:rgba(180,80,255,.6);">Punto di ritrovo storico · Ostia Lido</div>
+        <div style="font-size:13px;color:var(--text);margin:8px 0;line-height:1.6;">${CASA_CLANDESTINA.desc}</div>
+        <div class="popup-note" style="border-left:2px solid rgba(180,80,255,.4);padding-left:8px;font-style:italic;">
+          ${CASA_CLANDESTINA.note}
+        </div>
+      </div>`, { maxWidth:260, className:'' });
+  // Add temporarily to initialize the dragging handler, then let updateCasaVisibility control actual visibility
+  casaMarker.addTo(map);
+  if (casaMarker.dragging) casaMarker.dragging.disable();  // starts locked
+  map.removeLayer(casaMarker);  // remove immediately; updateCasaVisibility will re-add if zoom OK
+
+  casaMarkerRef = casaMarker; // make accessible to toggleAdminMode
+  casaMarker.on('dragend', function(e) {
+    const {lat,lng} = e.target.getLatLng();
+    savePos('poi', 'casa', lat, lng);
+    showAdminToast('📍 Casa Clandestina salvata');
+  });
+
+  function updateCasaVisibility() {
+    if (adminMode || map.getZoom() >= CASA_MIN_ZOOM) {
+      if (!map.hasLayer(casaMarker)) casaMarker.addTo(map);
+    } else {
+      if (map.hasLayer(casaMarker)) map.removeLayer(casaMarker);
+    }
+  }
+  map.on('zoomend', updateCasaVisibility);
+  updateCasaVisibility();
+}
+
+// ═══════════════════════════════════════════════════
+// MARKERS
+// ═══════════════════════════════════════════════════
+function makePoiIcon(wh, type) {
+  const { c, glow } = condColor(wh);
+  const emojis = { surf:'🏄', kite:'🪁', beginner:'🌊', intermediate:'🏊', advanced:'⚓' };
+  const sz = Math.round(14 + Math.min(wh*10, 18));
+  const gl = glow ? `box-shadow:0 0 ${sz}px ${c},0 0 ${sz*2}px ${c}44;` : '';
+  return L.divIcon({
+    className:'',
+    html:`<div style="width:${sz}px;height:${sz}px;border-radius:50%;
+      background:${c};border:2px solid white;${gl}
+      display:flex;align-items:center;justify-content:center;
+      cursor:pointer;font-size:${Math.round(sz*.55)}px;">
+      ${sz>22 ? emojis[type]||'📍' : ''}</div>`,
+    iconSize:[sz,sz], iconAnchor:[sz/2,sz/2]
+  });
+}
+
+function popupHTML(spot, wh, wp, wd, ws, wdir, wg, sh, sp) {
+  const { c, lbl } = condColor(wh);
+  return `<div class="popup-inner">
+    <div class="popup-title">${spot.name}</div>
+    <div class="popup-sub">${spot.sub}</div>
+    <div class="popup-grid">
+      <div class="pstat"><div class="pstat-lbl">🌊 Altezza</div><div class="pstat-val" style="color:${c}">${wh.toFixed(1)}<span class="pstat-u">m</span></div></div>
+      <div class="pstat"><div class="pstat-lbl">⏱ Periodo</div><div class="pstat-val" style="color:var(--accent2)">${wp.toFixed(0)}<span class="pstat-u">s</span></div></div>
+      <div class="pstat"><div class="pstat-lbl">🧭 Dir. onda</div><div class="pstat-val" style="font-size:12px">${deg2compass(wd)} ${wd.toFixed(0)}°</div></div>
+      <div class="pstat"><div class="pstat-lbl">💨 Vento</div><div class="pstat-val" style="font-size:12px;color:var(--sub)">${ws.toFixed(0)}<span class="pstat-u">km/h</span></div></div>
+      <div class="pstat"><div class="pstat-lbl">🌀 Swell</div><div class="pstat-val" style="color:var(--accent2)">${sh.toFixed(1)}<span class="pstat-u">m</span></div></div>
+      <div class="pstat"><div class="pstat-lbl">🕐 Swell T</div><div class="pstat-val" style="color:var(--accent2)">${sp.toFixed(0)}<span class="pstat-u">s</span></div></div>
+    </div>
+    <div class="pcond" style="background:${c}22;color:${c};border:1px solid ${c}44">${lbl}</div>
+    <div class="popup-note">${spot.note}</div>
+  </div>`;
+}
+
+function placeMarkers(v) {
+  // Remove old markers
+  spotMarkers.forEach(m => { try{ map.removeLayer(m); }catch(e){} });
+  spotMarkers = [];
+
+  SPOTS.forEach((s,i) => {
+    const f  = 0.85 + (i/SPOTS.length)*0.35;
+    const wh = Math.max(0, v.wh*f + (Math.random()*.04-.02));
+    // Use saved position if the user has dragged this marker before
+    const pos = getSavedPos('spot', s.id, s.lat, s.lng);
+
+    const marker = L.marker([pos.lat, pos.lng], {
+      icon: makePoiIcon(wh, s.type),
+      draggable: true    // always true; we lock it via dragging.disable() outside admin mode
+    })
+    .bindPopup(popupHTML(s,wh,v.wp,v.wd,v.ws,v.wdir,v.wg,v.sh*f,v.sp), {maxWidth:260,className:''})
+    .on('dragend', function(e) {
+      if (!adminMode) return;
+      const {lat,lng} = e.target.getLatLng();
+      savePos('spot', s.id, lat, lng);
+      showAdminToast(`📍 ${s.name} salvato`);
+    });
+    // Initialize the drag handler (requires being on map once)
+    marker.addTo(map);
+    if (marker.dragging) marker.dragging.disable();  // starts locked; toggleAdminMode enables it
+    map.removeLayer(marker);  // visibility managed by updateSpotVisibility
+
+    marker._spotData  = s;
+    marker._wh        = wh;
+    spotMarkers.push(marker);
+  });
+
+  lastWh = v.wh;
+  lastWs = v.ws;
+  updateSpotVisibility(v.wh, v.ws);
+}
+
+// ═══════════════════════════════════════════════════
+// VECTORS
+// ═══════════════════════════════════════════════════
+function removeVectors() { if(vectorLayer){ map.removeLayer(vectorLayer); vectorLayer=null; } }
+
+function drawArrow(lines, x, y, angleDeg, len, color, dashed) {
+  const r = (angleDeg-90)*Math.PI/180;
+  const x2=x+Math.cos(r)*len, y2=y+Math.sin(r)*len;
+  const hl=7, ha=0.4;
+  const ax1=x2-hl*Math.cos(r-ha), ay1=y2-hl*Math.sin(r-ha);
+  const ax2=x2-hl*Math.cos(r+ha), ay2=y2-hl*Math.sin(r+ha);
+  const da = dashed ? ' stroke-dasharray="5,3"' : '';
+  lines.push(`<line x1="${x.toFixed(1)}" y1="${y.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="${color}" stroke-width="1.4" opacity=".7"${da}/>`);
+  lines.push(`<polygon points="${x2.toFixed(1)},${y2.toFixed(1)} ${ax1.toFixed(1)},${ay1.toFixed(1)} ${ax2.toFixed(1)},${ay2.toFixed(1)}" fill="${color}" opacity=".85"/>`);
+}
+
+function drawVectors() {
+  removeVectors();
+  if (!vectorsOn || !wData || !mData) return;
+  const wd  = wData.current?.wind_direction_10m ?? 0;
+  const ws  = wData.current?.wind_speed_10m ?? 0;
+  const wav = mData.current?.wave_direction ?? 0;
+  const wh  = mData.current?.wave_height ?? 0;
+  const bounds = map.getBounds();
+  const ne = map.latLngToContainerPoint(bounds.getNorthEast());
+  const sw = map.latLngToContainerPoint(bounds.getSouthWest());
+  const W = Math.abs(ne.x-sw.x), H = Math.abs(sw.y-ne.y);
+  const GX=10, GY=7;
+  const wLen = Math.min(12+ws*.55,38);
+  const waveLen = Math.min(10+wh*12,36);
+  const lines = [];
+  for(let ix=0;ix<=GX;ix++) for(let iy=0;iy<=GY;iy++) {
+    const x=(ix/GX)*W, y=(iy/GY)*H;
+    const ll = map.containerPointToLatLng([x,y]);
+    if(ll.lat > 41.77) continue;
+    drawArrow(lines, x, y, wd, wLen, '#00b4ff', false);
+    drawArrow(lines, x+3, y+3, wav, waveLen, '#00ffcc', true);
+  }
+  const el = document.createElementNS('http://www.w3.org/2000/svg','svg');
+  el.innerHTML = lines.join('');
+  el.style.cssText='pointer-events:none';
+  vectorLayer = L.svgOverlay(el, bounds, {interactive:false,zIndex:500}).addTo(map);
+}
+
+// ═══════════════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════════════
+function fetchWithTimeout(url, ms=12000) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), ms);
+  return fetch(url, { signal: ctrl.signal })
+    .finally(() => clearTimeout(timer));
+}
+async function fetchWeather(lat,lng) {
+  const r = await fetchWithTimeout(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=wind_speed_10m,wind_direction_10m,wind_gusts_10m&timezone=Europe%2FRome`);
+  return r.json();
+}
+async function fetchMarine(lat,lng) {
+  const r = await fetchWithTimeout(`https://marine-api.open-meteo.com/v1/marine?latitude=${lat}&longitude=${lng}&current=wave_height,wave_direction,wave_period,swell_wave_height,swell_wave_direction,swell_wave_period&hourly=wave_height,wave_direction,wave_period&timezone=Europe%2FRome&forecast_days=2`);
+  return r.json();
+}
+
+// Surfline (public API — may be CORS blocked; graceful fallback)
+async function fetchSurfline() {
+  try {
+    const sid = '6418ded793265b858517e2ab';
+    const [wave, wind, rating] = await Promise.all([
+      fetch(`https://services.surfline.com/kbyg/spots/forecasts/wave?spotId=${sid}&days=2&intervalHours=3&cacheEnabled=true&units[waveHeight]=M`).then(r=>r.json()),
+      fetch(`https://services.surfline.com/kbyg/spots/forecasts/wind?spotId=${sid}&days=2&intervalHours=3&cacheEnabled=true&units[windSpeed]=KPH`).then(r=>r.json()),
+      fetch(`https://services.surfline.com/kbyg/spots/forecasts/rating?spotId=${sid}&days=2&intervalHours=3&cacheEnabled=true`).then(r=>r.json())
+    ]);
+    const w0 = wave?.data?.wave?.[0];
+    const wi0 = wind?.data?.wind?.[0];
+    const r0 = rating?.data?.rating?.[0];
+    if (w0) {
+      const h = w0.surf.humanRelation || `${w0.surf.min.toFixed(1)}–${w0.surf.max.toFixed(1)} m`;
+      const sw = w0.swells?.[0] ? `${w0.swells[0].height.toFixed(1)}m @ ${w0.swells[0].period}s` : '--';
+      const wsp = wi0 ? `${wi0.speed.toFixed(0)} km/h ${wi0.directionType}` : '--';
+      const stars = r0 ? Math.round(r0.value) : 2;
+      document.getElementById('sl-h').textContent = h;
+      document.getElementById('sl-sw').textContent = sw;
+      document.getElementById('sl-w').textContent = wsp;
+      document.getElementById('sl-stars').textContent = '★'.repeat(stars) + '☆'.repeat(5-stars);
+      document.getElementById('sl-cond').textContent = r0?.key?.replace(/_/g,' ') || 'Dati Surfline';
+    }
+  } catch(e) {
+    document.getElementById('sl-cond').textContent = 'Dati non disponibili — apri Surfline →';
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// UPDATE PANEL
+// ═══════════════════════════════════════════════════
+function updatePanel(w, m) {
+  const wh  = m.current?.wave_height ?? 0;
+  const wp  = m.current?.wave_period ?? 0;
+  const wd  = m.current?.wave_direction ?? 0;
+  const ws  = w.current?.wind_speed_10m ?? 0;
+  const wdir= w.current?.wind_direction_10m ?? 0;
+  const wg  = w.current?.wind_gusts_10m ?? 0;
+  const sh  = m.current?.swell_wave_height ?? 0;
+  const sp  = m.current?.swell_wave_period ?? 0;
+
+  document.getElementById('m-wh').textContent   = wh.toFixed(1);
+  document.getElementById('m-wp').textContent   = wp.toFixed(0);
+  document.getElementById('m-wd').textContent   = `${deg2compass(wd)} ${wd.toFixed(0)}°`;
+  document.getElementById('m-ws').textContent   = ws.toFixed(0);
+  document.getElementById('m-wdir').textContent = `${deg2compass(wdir)} ${wdir.toFixed(0)}°`;
+  document.getElementById('m-wg').textContent   = wg.toFixed(0);
+  document.getElementById('m-sh').textContent   = sh.toFixed(1);
+  document.getElementById('m-sp').textContent   = sp.toFixed(0);
+
+  const { c, lbl } = condColor(wh);
+  const ct = document.getElementById('cond-txt');
+  ct.textContent = lbl; ct.style.color = c;
+
+  document.getElementById('comp-needle').setAttribute('transform',`rotate(${wdir},31,31)`);
+  document.getElementById('comp-spd').textContent = ws.toFixed(0);
+  updateCompassBottom();
+  document.getElementById('panel-time').textContent = new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
+
+  // Keep track for admin/conditional visibility
+  lastWh = wh; lastWs = ws;
+  updateSpotVisibility(wh, ws);
+
+  return { wh, wp, wd, ws, wdir, wg, sh, sp };
+}
+
+// ═══════════════════════════════════════════════════
+// FORECAST CHART
+// ═══════════════════════════════════════════════════
+function buildChart(m) {
+  if (!m.hourly) return;
+  const labels = m.hourly.time.slice(0,24).map(t=>t.slice(11,16));
+  const heights = m.hourly.wave_height.slice(0,24);
+  const periods = m.hourly.wave_period.slice(0,24).map(p=>p/2);
+  if (chartInst) { chartInst.destroy(); chartInst=null; }
+  chartInst = new Chart(document.getElementById('wave-canvas'), {
+    type:'line',
+    data:{
+      labels,
+      datasets:[
+        { label:'Altezza (m)', data:heights, borderColor:'#00b4ff',
+          backgroundColor:'rgba(0,180,255,0.1)', fill:true, tension:.4, pointRadius:2 },
+        { label:'Periodo/2 (s)', data:periods, borderColor:'#00ffcc',
+          backgroundColor:'rgba(0,255,204,0.04)', fill:false, tension:.4, pointRadius:2 }
+      ]
+    },
+    options:{
+      responsive:true,
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{ticks:{color:'#546e7a',font:{size:8},maxTicksLimit:8},grid:{color:'rgba(255,255,255,.04)'}},
+        y:{ticks:{color:'#546e7a',font:{size:8}},grid:{color:'rgba(255,255,255,.04)'},min:0}
+      }
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════
+// EVENTS — Resident Advisor GraphQL
+// ═══════════════════════════════════════════════════
+async function loadRAEvents() {
+  const days = [];
+  const today = new Date();
+  for (let i=0; i<5; i++) {
+    const d = new Date(today);
+    d.setDate(today.getDate()+i);
+    days.push(d);
+  }
+
+  const container = document.getElementById('ev-days');
+  const status = document.getElementById('ev-status');
+
+  // Build day columns
+  container.innerHTML = '';
+  days.forEach(d => {
+    const { day, date } = fmtDate(d.toISOString());
+    const col = document.createElement('div');
+    col.className = 'ev-day';
+    col.id = `ev-day-${d.toISOString().slice(0,10)}`;
+    col.innerHTML = `
+      <div class="ev-day-hdr">
+        <div class="ev-day-name">${day}</div>
+        <div class="ev-day-date">${date}</div>
+      </div>
+      <div class="ev-list" id="ev-list-${d.toISOString().slice(0,10)}">
+        <div class="ev-loading">🔄 Caricamento...</div>
+      </div>`;
+    container.appendChild(col);
+  });
+
+  // RA GraphQL query
+  const RA_URL = 'https://ra.co/graphql';
+  const RA_HEADERS = {
+    'Content-Type': 'application/json',
+    'Referer': 'https://ra.co/events/it/rome',
+    'User-Agent': 'Mozilla/5.0'
+  };
+
+  const dateFrom = days[0].toISOString().slice(0,10)+'T00:00:00.000Z';
+  const dateTo   = days[4].toISOString().slice(0,10)+'T23:59:59.999Z';
+
+  const AREA_QUERY = `{ areas(searchTerm: "rome", limit: 3) { id name country { name } } }`;
+  const EVENT_QUERY = `
+    query($filters: FilterInputDtoInput, $page: Int, $pageSize: Int) {
+      eventListings(filters: $filters, pageSize: $pageSize, page: $page) {
+        data {
+          event {
+            id title date startTime endTime attending contentUrl
+            venue { name address }
+            artists { name }
+            genres { name }
+          }
+        }
+        totalResults
+      }
+    }`;
+
+  try {
+    status.textContent = 'Ricercando area Roma su RA...';
+
+    // Step 1: get Rome area ID
+    const areaRes = await fetch(RA_URL, {
+      method:'POST',
+      headers: RA_HEADERS,
+      body: JSON.stringify({ query: AREA_QUERY })
+    });
+    const areaData = await areaRes.json();
+    const romeArea = areaData?.data?.areas?.find(a => a.name.toLowerCase().includes('rome') || a.name.toLowerCase().includes('roma'));
+    const areaId = romeArea?.id || 13; // fallback: 13 is common for Rome
+
+    status.textContent = `Area Roma (ID ${areaId}) — caricamento eventi...`;
+
+    // Step 2: fetch events
+    const evRes = await fetch(RA_URL, {
+      method:'POST',
+      headers: RA_HEADERS,
+      body: JSON.stringify({
+        query: EVENT_QUERY,
+        variables: {
+          filters: {
+            areas: { eq: parseInt(areaId) },
+            listingDate: { gte: dateFrom, lte: dateTo }
+          },
+          pageSize: 60,
+          page: 1
+        }
+      })
+    });
+    const evData = await evRes.json();
+    const events = evData?.data?.eventListings?.data?.map(d=>d.event) || [];
+    const total  = evData?.data?.eventListings?.totalResults || 0;
+
+    status.textContent = `${events.length} eventi trovati (${total} totali) · Fonte: RA GraphQL`;
+    document.getElementById('ev-count').textContent = `(${events.length})`;
+
+    if (events.length === 0) {
+      days.forEach(d => {
+        const k = d.toISOString().slice(0,10);
+        const el = document.getElementById(`ev-list-${k}`);
+        if(el) el.innerHTML = '<div class="ev-empty">Nessun evento trovato</div>';
+      });
+      return;
+    }
+
+    // Group by date
+    const byDay = {};
+    events.forEach(ev => {
+      const k = ev.date?.slice(0,10);
+      if(!k) return;
+      if(!byDay[k]) byDay[k] = [];
+      byDay[k].push(ev);
+    });
+
+    days.forEach(d => {
+      const k = d.toISOString().slice(0,10);
+      const el = document.getElementById(`ev-list-${k}`);
+      if (!el) return;
+      const dayEvs = byDay[k] || [];
+      if (dayEvs.length === 0) {
+        el.innerHTML = '<div class="ev-empty">Nessun evento · <a href="https://ra.co/events/it/rome" target="_blank" style="color:var(--accent)">Cerca su RA →</a></div>';
+        return;
+      }
+      el.innerHTML = dayEvs.slice(0,6).map(ev => {
+        const artists = ev.artists?.slice(0,2).map(a=>a.name).join(', ') || '';
+        const genre = ev.genres?.[0]?.name || '';
+        const time = ev.startTime?.slice(0,5) || '';
+        const venue = ev.venue?.name || '';
+        const url = ev.contentUrl ? `https://ra.co${ev.contentUrl}` : 'https://ra.co/events/it/rome';
+        return `<a class="ev-card" href="${url}" target="_blank">
+          <div class="ev-card-title">${ev.title}</div>
+          ${artists ? `<div class="ev-card-venue">🎵 ${artists}</div>` : ''}
+          ${venue ? `<div class="ev-card-venue">📍 ${venue}</div>` : ''}
+          ${time ? `<div class="ev-card-time">🕐 ${time}</div>` : ''}
+          ${genre ? `<div><span class="ev-card-genre">${genre}</span></div>` : ''}
+        </a>`;
+      }).join('');
+      if (dayEvs.length > 6) {
+        el.innerHTML += `<a class="ev-card" href="https://ra.co/events/it/rome" target="_blank" style="text-align:center;color:var(--sub);font-size:10px;">+${dayEvs.length-6} altri eventi →</a>`;
+      }
+    });
+
+  } catch(err) {
+    console.warn('RA GraphQL failed:', err);
+    status.textContent = 'Connessione RA bloccata — apri RA direttamente';
+
+    // Friendly fallback for each day
+    days.forEach(d => {
+      const k = d.toISOString().slice(0,10);
+      const el = document.getElementById(`ev-list-${k}`);
+      if(el) el.innerHTML = `<div class="ev-empty">
+        <a href="https://ra.co/events/it/rome" target="_blank" style="color:var(--accent);text-decoration:none;">
+          → Vedi eventi su Resident Advisor
+        </a>
+      </div>`;
+    });
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// LOGO EASTER EGG — 5 click → filosofia
+// ═══════════════════════════════════════════════════
+let logoClicks = 0, logoTimer = null;
+function logoClick() {
+  logoClicks++;
+  const logo = document.getElementById('logo');
+  logo.classList.remove('ticking');
+  void logo.offsetWidth; // reflow to restart animation
+  logo.classList.add('ticking');
+
+  clearTimeout(logoTimer);
+  logoTimer = setTimeout(() => { logoClicks = 0; }, 2000);
+
+  if (logoClicks >= 5) {
+    logoClicks = 0;
+    clearTimeout(logoTimer);
+    document.getElementById('filo-modal').classList.add('open');
+  }
+}
+function filoClose(e) {
+  if (!e || e.target === document.getElementById('filo-modal') || e.target === document.getElementById('filo-close')) {
+    document.getElementById('filo-modal').classList.remove('open');
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// UI CONTROLS
+// ═══════════════════════════════════════════════════
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  event.target.classList.add('active');
+
+  const surfView  = document.getElementById('surf-view');
+  const evView    = document.getElementById('events-view');
+  const commView  = document.getElementById('community-view');
+  const mapEl     = document.getElementById('map');
+
+  surfView.style.display  = 'none';
+  evView.classList.remove('active');
+  commView.classList.remove('active');
+  mapEl.style.display     = 'none';
+
+  if (tab === 'surf') {
+    surfView.style.display = '';
+    mapEl.style.display    = '';
+  } else if (tab === 'events') {
+    evView.classList.add('active');
+    loadRAEvents();
+  } else if (tab === 'community') {
+    commView.classList.add('active');
+  }
+}
+
+function switchPtab(id) {
+  document.querySelectorAll('.ptab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.ptab-content').forEach(c=>c.classList.remove('active'));
+  document.querySelector(`.ptab[onclick="switchPtab('${id}')"]`).classList.add('active');
+  document.getElementById(`pt-${id}`).classList.add('active');
+}
+
+function toggleVectors() {
+  vectorsOn = !vectorsOn;
+  const btn = document.getElementById('vec-btn');
+  if(vectorsOn){ btn.classList.add('on'); drawVectors(); }
+  else { btn.classList.remove('on'); removeVectors(); }
+}
+
+function toggleChart() {
+  chartOpen = !chartOpen;
+  document.getElementById('fchart-panel').classList.toggle('open', chartOpen);
+  document.getElementById('chart-btn').classList.toggle('on', chartOpen);
+}
+
+function toggleSchools() {
+  schoolsOpen = !schoolsOpen;
+  document.getElementById('schools-body').style.display = schoolsOpen ? 'flex' : 'none';
+  document.getElementById('schools-tabs').style.display  = schoolsOpen ? 'flex' : 'none';
+  document.getElementById('schools-toggle').textContent  = schoolsOpen ? '▲ chiudi' : '▼ apri';
+  updateCompassBottom();
+}
+
+function updateCompassBottom() {
+  const bar   = document.getElementById('schools');
+  const barH  = bar ? bar.getBoundingClientRect().height : 44;
+  document.getElementById('compass').style.bottom = (barH + 8) + 'px';
+}
+
+function scCardClick(el, event) {
+  // If user clicked a link directly, let it open naturally
+  if (event.target.closest('a')) return;
+  // Otherwise open the first link in the card
+  const first = el.querySelector('a[href]');
+  if (first) window.open(first.href, '_blank');
+}
+
+function filterSchools(cat) {
+  document.querySelectorAll('.sc-tab').forEach(b => b.classList.toggle('active', b.dataset.cat === cat));
+  document.querySelectorAll('#schools-body .sc-card').forEach(c => {
+    c.style.display = (cat === 'all' || c.dataset.cat === cat) ? '' : 'none';
+  });
+  // Re-calc compass after filter (body height may change)
+  setTimeout(updateCompassBottom, 50);
+}
+
+// ── WEBCAM HLS ──────────────────────────────────────
+let hlsInstance = null;
+let activeCamId = 'levante';
+
+// Cache dei token per camera — pre-fetched all'avvio
+const cachedTokens = {};
+
+const CORS_PROXIES = [
+  'https://api.allorigins.win/get?url=',
+  'https://corsproxy.io/?url=',
+];
+
+function wcamSetMsg(msg, sub='', spin=false) {
+  document.getElementById('wcam-msg').textContent = msg;
+  document.getElementById('wcam-sub').textContent = sub;
+  document.getElementById('wcam-spin').style.display = spin ? 'inline-block' : 'none';
+}
+
+/** Estrae il token HLS dalla pagina SkylineWebcams della camera indicata */
+async function fetchTokenForCam(cam) {
+  const src = cam.skylineUrl;
+  for (const proxy of CORS_PROXIES) {
+    try {
+      const url = proxy + encodeURIComponent(src);
+      const resp = await fetchWithTimeout(url, 10000);
+      const data = await resp.json();
+      const body = data.contents || (typeof data === 'string' ? data : JSON.stringify(data));
+      const m = body.match(/livee?\.m3u8\?a=([\w\-]+)/);
+      if (m) return m[1];
+    } catch(e) { /* try next proxy */ }
+  }
+  return null;
+}
+
+/** Pre-fetch token per tutte le camera appena la pagina si carica */
+async function prefetchAllTokens() {
+  for (const cam of WEBCAMS) {
+    fetchTokenForCam(cam).then(token => {
+      if (token) { cachedTokens[cam.id] = token; }
+    });
+  }
+}
+
+async function startHLS(token) {
+  const streamUrl = `https://hd-auth.skylinewebcams.com/live.m3u8?a=${token}`;
+  const video = document.getElementById('wcam-video');
+
+  if (hlsInstance) { hlsInstance.destroy(); hlsInstance = null; }
+
+  wcamSetMsg('Avvio stream...', '', true);
+
+  if (typeof Hls !== 'undefined' && Hls.isSupported()) {
+    hlsInstance = new Hls({ enableWorker: true, lowLatencyMode: true });
+    hlsInstance.loadSource(streamUrl);
+    hlsInstance.attachMedia(video);
+    hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
+      document.getElementById('wcam-status').style.display = 'none';
+      video.style.display = 'block';
+      video.play().catch(()=>{});
+    });
+    hlsInstance.on(Hls.Events.ERROR, (_, data) => {
+      if (data.fatal) {
+        wcamSetMsg('⚠ Stream non disponibile', 'Feed offline. Prova Riconnetti.', false);
+        document.getElementById('wcam-status').style.display = 'flex';
+        video.style.display = 'none';
+      }
+    });
+  } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+    video.src = streamUrl;
+    video.style.display = 'block';
+    document.getElementById('wcam-status').style.display = 'none';
+    video.play().catch(()=>{});
+  } else {
+    wcamSetMsg('Browser non supporta HLS', 'Usa Chrome o Safari', false);
+  }
+}
+
+async function initWebcam(camId) {
+  const cam = WEBCAMS.find(c => c.id === camId) || WEBCAMS[0];
+  activeCamId = cam.id;
+
+  // Aggiorna tab UI
+  document.querySelectorAll('.wcam-tab-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.cam === cam.id));
+  document.getElementById('wcam-title').textContent = '📷 ' + cam.name;
+
+  const status = document.getElementById('wcam-status');
+  const video  = document.getElementById('wcam-video');
+  video.style.display = 'none';
+  status.style.display = 'flex';
+  status.style.flexDirection = 'column';
+  status.style.alignItems = 'center';
+
+  // Usa il token in cache se disponibile, altrimenti fetchalo ora
+  let token = cachedTokens[cam.id];
+  if (token) {
+    wcamSetMsg('Avvio stream...', '', true);
+    await startHLS(token);
+  } else {
+    wcamSetMsg('Recupero token...', cam.skylineUrl.split('/').pop(), true);
+    token = await fetchTokenForCam(cam);
+    if (token) {
+      cachedTokens[cam.id] = token;
+      await startHLS(token);
+    } else {
+      wcamSetMsg('❌ Token non trovato', 'Feed potrebbe essere offline.', false);
+    }
+  }
+}
+
+function retryWebcam() { initWebcam(activeCamId); }
+
+function openWebcam(camId) {
+  activeCamId = camId || 'levante';
+  document.getElementById('wcam-modal').classList.add('open');
+  initWebcam(activeCamId);
+}
+
+function closeWebcam(e) {
+  if (!e || e.target === document.getElementById('wcam-modal') || e.target === document.getElementById('wcam-close')) {
+    document.getElementById('wcam-modal').classList.remove('open');
+    if (hlsInstance) { hlsInstance.destroy(); hlsInstance = null; }
+    const video = document.getElementById('wcam-video');
+    video.pause(); video.src = '';
+    video.style.display = 'none';
+    document.getElementById('wcam-status').style.display = 'flex';
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// MAIN
+// ═══════════════════════════════════════════════════
+async function main() {
+  // Avvia subito i messaggi Sims
+  startSimMsgs();
+
+  // Pre-fetch webcam tokens in background
+  prefetchAllTokens();
+
+  // Nascondi loading dopo 15s con dissolvenza
+  setTimeout(() => {
+    stopSimMsgs();
+    const ld = document.getElementById('loading');
+    if (!ld) return;
+    ld.style.transition = 'opacity .6s';
+    ld.style.opacity = '0';
+    setTimeout(() => { ld.style.display = 'none'; }, 600);
+  }, 15000);
+
+  // Ctrl+Shift+P → admin drag mode
+  document.addEventListener('keydown', e => {
+    if (e.ctrlKey && e.shiftKey && (e.key === 'P' || e.key === 'p')) {
+      e.preventDefault();
+      toggleAdminMode();
+    }
+  });
+
+  const LAT=41.718, LNG=12.325;
+
+  // ── FASE 1: apri il sito SUBITO con dati demo ──────────────────────────
+  initMap();
+  initCommunity();
+
+  const demo = {wh:.6,wp:9,wd:225,ws:15,wdir:230,wg:22,sh:.4,sp:10};
+  updatePanel(
+    {current:{wind_speed_10m:demo.ws,wind_direction_10m:demo.wdir,wind_gusts_10m:demo.wg}},
+    {current:{wave_height:demo.wh,wave_period:demo.wp,wave_direction:demo.wd,swell_wave_height:demo.sh,swell_wave_period:demo.sp}}
+  );
+  placeMarkers(demo);
+  drawVectors();
+
+  // (loading già nascosto all'inizio di main)
+
+  // ── FASE 2: carica i dati reali in background ──────────────────────────
+  // Piccolo indicatore in basso a destra (non blocca il sito)
+  const indicator = document.createElement('div');
+  indicator.id = 'data-indicator';
+  indicator.style.cssText = 'position:fixed;bottom:44px;left:10px;z-index:999;background:rgba(0,180,255,.15);border:1px solid rgba(0,180,255,.3);border-radius:8px;padding:5px 10px;font-size:9px;color:#00b4ff;letter-spacing:.5px;pointer-events:none;transition:opacity .4s;';
+  indicator.textContent = '⟳ Aggiornamento dati…';
+  document.body.appendChild(indicator);
+
+  // Carica i dati reali — ritenta fino a 3 volte con backoff
+  async function loadRealData() {
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        indicator.textContent = `⟳ Caricamento dati… (${attempt}/3)`;
+        const [w, m] = await Promise.all([
+          fetch('https://api.open-meteo.com/v1/forecast?latitude='+LAT+'&longitude='+LNG+'&current=wind_speed_10m,wind_direction_10m,wind_gusts_10m&timezone=Europe%2FRome').then(r=>r.json()),
+          fetch('https://marine-api.open-meteo.com/v1/marine?latitude='+LAT+'&longitude='+LNG+'&current=wave_height,wave_direction,wave_period,swell_wave_height,swell_wave_direction,swell_wave_period&timezone=Europe%2FRome&forecast_days=2').then(r=>r.json())
+        ]);
+        if (!w?.current || !m?.current) throw new Error('Dati incompleti');
+        wData = w; mData = m;
+        const v = updatePanel(wData, mData);
+        placeMarkers(v);
+        if (vectorsOn) drawVectors();
+        fetchMarine(41.7128, 12.3375).then(mc => { try { buildChart(mc); } catch(e){} }).catch(()=>{});
+        fetchSurfline();
+        indicator.textContent = '✓ Dati live aggiornati';
+        indicator.style.background = 'rgba(0,230,118,.12)';
+        indicator.style.borderColor = 'rgba(0,230,118,.3)';
+        indicator.style.color = '#00e676';
+        setTimeout(() => { indicator.style.opacity='0'; setTimeout(()=>indicator.remove(),400); }, 2500);
+        // Auto-refresh ogni 15min
+        setInterval(async()=>{
+          try{
+            const [w2,m2] = await Promise.all([
+              fetch('https://api.open-meteo.com/v1/forecast?latitude='+LAT+'&longitude='+LNG+'&current=wind_speed_10m,wind_direction_10m,wind_gusts_10m&timezone=Europe%2FRome').then(r=>r.json()),
+              fetch('https://marine-api.open-meteo.com/v1/marine?latitude='+LAT+'&longitude='+LNG+'&current=wave_height,wave_direction,wave_period,swell_wave_height,swell_wave_direction,swell_wave_period&timezone=Europe%2FRome&forecast_days=2').then(r=>r.json())
+            ]);
+            wData=w2; mData=m2;
+            updatePanel(wData,mData);
+            if(vectorsOn) drawVectors();
+          }catch(e){}
+        }, 900000);
+        return; // successo
+      } catch(err) {
+        console.warn('Tentativo '+attempt+' fallito:', err.message);
+        if (attempt < 3) await new Promise(r => setTimeout(r, 2000 * attempt));
+      }
+    }
+    // Tutti i tentativi falliti
+    indicator.textContent = '⚠ Dati offline — usando demo';
+    indicator.style.background = 'rgba(255,171,0,.1)';
+    indicator.style.borderColor = 'rgba(255,171,0,.3)';
+    indicator.style.color = '#ffab00';
+    setTimeout(() => { indicator.style.opacity='0'; setTimeout(()=>indicator.remove(),400); }, 5000);
+  }
+  loadRealData();
+}
+
+// ═══════════════════════════════════════════════════
+// ██████ FIREBASE CONFIG — CONFIGURA QUI ██████
+// ═══════════════════════════════════════════════════
+// 1. Vai su https://console.firebase.google.com
+// 2. Crea progetto "ostia-waves" → aggiungi App Web
+// 3. Copia la configurazione qui sotto
+// 4. Abilita: Authentication > Email/Password
+// 5. Crea Firestore Database (Start in production mode)
+// 6. Incolla le regole qui sotto nella console Firebase → Firestore → Rules
+//
+// REGOLE FIRESTORE:
+// rules_version = '2';
+// service cloud.firestore {
+//   match /databases/{database}/documents {
+//     match /users/{uid} {
+//       allow read: if request.auth != null;
+//       allow write: if request.auth.uid == uid || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+//     }
+//     match /courts/{id} {
+//       allow read: if true;
+//       allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+//     }
+//     match /bookings/{id} {
+//       allow read: if true;
+//       allow create: if request.auth != null;
+//       allow delete: if request.auth != null && (resource.data.userId == request.auth.uid || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+//     }
+//     match /sessions/{id} {
+//       allow read: if true;
+//       allow create: if request.auth != null;
+//       allow delete: if request.auth != null && (resource.data.userId == request.auth.uid || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+//     }
+//     match /chats/{chatId}/messages/{mid} {
+//       allow read, write: if request.auth != null;
+//     }
+//   }
+// }
+// ═══════════════════════════════════════════════════
+const FIREBASE_CONFIG = {
+  apiKey:            'INSERISCI-API-KEY',
+  authDomain:        'INSERISCI.firebaseapp.com',
+  projectId:         'INSERISCI-PROJECT-ID',
+  storageBucket:     'INSERISCI.appspot.com',
+  messagingSenderId: 'INSERISCI',
+  appId:             'INSERISCI'
+};
+const ADMIN_EMAIL    = 'giorgio@sunnywayteambuilding.com';
+const COURTS_MIN_ZOOM = 14;
+
+// Campi predefiniti (usati finché non ci sono dati su Firebase)
+const DEFAULT_COURTS = [
+  { id:'campo-lido',    name:'Campo Lido Centro',   lat:41.7195, lng:12.2935, sport:'beach_volley', blocked:false },
+  { id:'campo-fusano',  name:'Campo Castel Fusano', lat:41.6985, lng:12.3490, sport:'beach_volley', blocked:false },
+  { id:'campo-venezia', name:'Campo Venezia Beach', lat:41.7118, lng:12.3068, sport:'beach_volley', blocked:false },
+];
+
+// Community state
+let fbApp, fbAuth, fbDb;
+let commUser = null, commUserData = null;
+let courtMarkers = [];
+let activeCourts = [...DEFAULT_COURTS];
+let selectedDate  = new Date().toISOString().slice(0,10);
+let activeChatCourtId = null, activeChatDate = null, chatUnsub = null;
+let activeBookingCourtId = null;
+let sessionsUnsub = null;
+let firebaseReady = false;
+let proposedSport = 'surf';
+
+// ── INIT ────────────────────────────────────────────
+function initCommunity() {
+  // Place court markers immediately with defaults
+  placeCourts(DEFAULT_COURTS);
+  // Try to start Firebase
+  try {
+    if (FIREBASE_CONFIG.apiKey.includes('INSERISCI')) {
+      document.getElementById('firebase-banner').style.display = 'block';
+      // Show preview placeholder
+      document.getElementById('comm-preview').innerHTML = `
+        <div style="text-align:center;color:var(--sub);font-size:13px;line-height:1.8;padding:20px;border:1px dashed var(--border);border-radius:10px;">
+          🏄 Entra per vedere le sessioni attive e prenotare i campi di beach volley.<br>
+          <span style="font-size:11px;">I campi 🏐 compaiono sulla mappa zoomando sulla spiaggia (zoom ≥ 14).</span>
+        </div>`;
+      return;
+    }
+    fbApp  = firebase.initializeApp(FIREBASE_CONFIG);
+    fbAuth = firebase.auth();
+    fbDb   = firebase.firestore();
+    firebaseReady = true;
+
+    fbAuth.onAuthStateChanged(async user => {
+      if (user) {
+        commUser = user;
+        const snap = await fbDb.collection('users').doc(user.uid).get();
+        commUserData = snap.exists ? snap.data() : { name: user.email.split('@')[0], role:'user' };
+        onCommLoggedIn();
+      } else {
+        commUser = null; commUserData = null;
+        onCommLoggedOut();
+      }
+    });
+  } catch(e) {
+    console.warn('Firebase init error:', e);
+    document.getElementById('firebase-banner').style.display = 'block';
+  }
+}
+
+// ── AUTH ────────────────────────────────────────────
+async function doLogin(e) {
+  e.preventDefault();
+  showAuthErr('');
+  try {
+    await fbAuth.signInWithEmailAndPassword(
+      document.getElementById('login-email').value.trim(),
+      document.getElementById('login-password').value
+    );
+    closeModal('auth-modal');
+  } catch(err) { showAuthErr(authErrMsg(err.code)); }
+}
+
+async function doRegister(e) {
+  e.preventDefault();
+  showAuthErr('');
+  const name  = document.getElementById('reg-name').value.trim();
+  const email = document.getElementById('reg-email').value.trim();
+  const pass  = document.getElementById('reg-password').value;
+  try {
+    const cred = await fbAuth.createUserWithEmailAndPassword(email, pass);
+    const role = email === ADMIN_EMAIL ? 'admin' : 'user';
+    await fbDb.collection('users').doc(cred.user.uid).set({
+      name, email, role, createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    closeModal('auth-modal');
+  } catch(err) { showAuthErr(authErrMsg(err.code)); }
+}
+
+async function doLogout() {
+  if (sessionsUnsub) { sessionsUnsub(); sessionsUnsub = null; }
+  await fbAuth.signOut();
+}
+
+function authErrMsg(code) {
+  return ({
+    'auth/user-not-found':'Email non trovata',
+    'auth/wrong-password':'Password errata',
+    'auth/email-already-in-use':'Email già registrata',
+    'auth/weak-password':'Password troppo corta (min. 6 caratteri)',
+    'auth/invalid-email':'Email non valida',
+    'auth/too-many-requests':'Troppi tentativi — riprova tra qualche minuto',
+    'auth/invalid-credential':'Credenziali non valide',
+  })[code] || code;
+}
+
+function showAuthErr(msg) {
+  const el = document.getElementById('auth-err');
+  el.textContent = msg;
+  el.classList.toggle('show', !!msg);
+}
+
+function openAuth(tab) {
+  switchAuthTab(tab || 'login');
+  document.getElementById('auth-modal').classList.add('open');
+}
+
+function switchAuthTab(tab) {
+  document.getElementById('tab-login').classList.toggle('active', tab==='login');
+  document.getElementById('tab-register').classList.toggle('active', tab==='register');
+  document.getElementById('login-form').style.display  = tab==='login' ? '' : 'none';
+  document.getElementById('register-form').style.display = tab==='register' ? '' : 'none';
+  showAuthErr('');
+}
+
+// ── USER STATE ───────────────────────────────────────
+function onCommLoggedIn() {
+  const name = commUserData?.name || commUser.email.split('@')[0];
+  document.getElementById('comm-login-gate').style.display = 'none';
+  document.getElementById('comm-main').style.display = 'block';
+  document.getElementById('comm-username').textContent = name;
+  const isAdmin = commUser.email === ADMIN_EMAIL || commUserData?.role === 'admin';
+  document.getElementById('comm-admin-wrap').style.display = isAdmin ? '' : 'none';
+  buildGlobalDateSelector();
+  loadSessions();
+  loadCourts();
+}
+
+function onCommLoggedOut() {
+  document.getElementById('comm-login-gate').style.display = '';
+  document.getElementById('comm-main').style.display = 'none';
+  if (sessionsUnsub) { sessionsUnsub(); sessionsUnsub = null; }
+}
+
+// ── DATES ───────────────────────────────────────────
+function buildGlobalDateSelector() {
+  const c = document.getElementById('global-date-selector');
+  c.innerHTML = ['Oggi','Domani','+2gg','+3gg'].map((lbl,i) => {
+    const d = new Date(); d.setDate(d.getDate()+i);
+    const v = d.toISOString().slice(0,10);
+    return `<button class="date-btn${v===selectedDate?' active':''}" onclick="selectGlobalDate('${v}',this)">${lbl}</button>`;
+  }).join('');
+}
+
+function selectGlobalDate(date, btn) {
+  selectedDate = date;
+  document.querySelectorAll('#global-date-selector .date-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  loadCourts();
+}
+
+// ── COURTS ──────────────────────────────────────────
+async function loadCourts() {
+  const container = document.getElementById('courts-list');
+  if (!container) return;
+
+  let courts = DEFAULT_COURTS;
+  if (firebaseReady) {
+    try {
+      const snap = await fbDb.collection('courts').get();
+      if (!snap.empty) courts = snap.docs.map(d=>({id:d.id,...d.data()}));
+    } catch(e) {}
+  }
+  activeCourts = courts;
+  placeCourts(courts);
+
+  const bookings = await getBookingsForDate(selectedDate);
+  renderCourts(courts, bookings, container);
+}
+
+async function getBookingsForDate(date) {
+  if (!firebaseReady) {
+    try { return JSON.parse(localStorage.getItem('ow_bk_'+date)||'[]'); } catch(e) { return []; }
+  }
+  try {
+    const snap = await fbDb.collection('bookings').where('date','==',date).get();
+    return snap.docs.map(d=>({id:d.id,...d.data()}));
+  } catch(e) { return []; }
+}
+
+function renderCourts(courts, bookings, container) {
+  if (!courts.length) {
+    container.innerHTML = '<div style="color:var(--sub);font-size:12px;padding:20px;text-align:center;width:100%">Nessun campo disponibile</div>';
+    return;
+  }
+  container.innerHTML = courts.map(court => {
+    const cb   = bookings.filter(b=>b.courtId===court.id);
+    const mine = cb.find(b=>b.userId===commUser?.uid);
+    const full = cb.length >= 4;
+    const blk  = court.blocked;
+    const slots = [1,2,3,4].map(n => {
+      const bk  = cb.find(b=>b.slot===n);
+      const isMe = bk?.userId===commUser?.uid;
+      const cls = !bk?'free':(isMe?'mine':'taken');
+      const lbl = !bk?'🟢 Libero':(isMe?`⭐ ${bk.userName}`:`🔵 ${bk.userName}`);
+      return `<div class="court-slot ${cls}"><span style="font-size:10px;">${lbl}</span></div>`;
+    }).join('');
+    const stCls = blk?'blocked':full?'full':'partial';
+    const stTxt = blk?'🚫 Campo bloccato':full?`✅ Completo (${cb.length}/4)`:`${cb.length}/4 prenotati`;
+    return `<div class="court-card${blk?' blocked':''}" onclick="${blk?'void 0':`openBooking('${court.id}')`}">
+      <div class="court-name">🏐 ${court.name}</div>
+      <div class="court-meta">📅 ${selectedDate}</div>
+      <div class="court-slots-grid">${slots}</div>
+      <div class="court-status-bar ${stCls}">${stTxt}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── BOOKING MODAL ────────────────────────────────────
+async function openBooking(courtId) {
+  const court = activeCourts.find(c=>c.id===courtId);
+  if (!court) return;
+  activeBookingCourtId = courtId;
+  document.getElementById('booking-court-name').textContent = `🏐 ${court.name}`;
+  buildBookingDatePicker();
+  await refreshBookingSlots();
+  document.getElementById('booking-modal').classList.add('open');
+}
+
+function buildBookingDatePicker() {
+  const c = document.getElementById('booking-date-selector');
+  c.innerHTML = ['Oggi','Domani','+2gg','+3gg'].map((lbl,i) => {
+    const d = new Date(); d.setDate(d.getDate()+i);
+    const v = d.toISOString().slice(0,10);
+    return `<button class="date-btn${v===selectedDate?' active':''}" onclick="selectBookingDate('${v}',this)">${lbl}</button>`;
+  }).join('');
+}
+
+async function selectBookingDate(date, btn) {
+  selectedDate = date;
+  document.querySelectorAll('#booking-date-selector .date-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  await refreshBookingSlots();
+}
+
+async function refreshBookingSlots() {
+  const court = activeCourts.find(c=>c.id===activeBookingCourtId);
+  if (!court) return;
+  const bookings = await getBookingsForDate(selectedDate);
+  const cb   = bookings.filter(b=>b.courtId===activeBookingCourtId);
+  const mine = cb.find(b=>b.userId===commUser?.uid);
+  const full = cb.length >= 4;
+
+  document.getElementById('court-full-banner').style.display = full ? 'block' : 'none';
+  document.getElementById('booking-chat-btn').style.display  = full ? 'block' : 'none';
+
+  document.getElementById('booking-slots').innerHTML = [1,2,3,4].map(n => {
+    const bk   = cb.find(b=>b.slot===n);
+    const isMe = bk?.userId===commUser?.uid;
+    const cls  = !bk?'free':(isMe?'mine':'taken');
+    const name = !bk?'Slot libero':(isMe?`✓ ${bk.userName}`:bk.userName);
+    let action = '';
+    if (!bk && !mine && !full)
+      action = `<button class="slot-book" onclick="bookSlot(${n})">Prenota</button>`;
+    else if (isMe)
+      action = `<button class="slot-cancel" onclick="cancelBooking('${bk.id}')">Annulla</button>`;
+    return `<div class="book-slot ${cls}">
+      <div class="slot-num">Slot ${n}</div>
+      <div class="slot-name">${name}</div>
+      ${action}
+    </div>`;
+  }).join('');
+
+  const noteEl = document.getElementById('booking-note');
+  noteEl.textContent = mine
+    ? `Hai prenotato lo Slot ${mine.slot} · ${selectedDate}`
+    : full
+    ? 'Campo completo — apri la chat per coordinarvi con gli altri 3!'
+    : `${4-cb.length} slot disponibili · ${selectedDate}`;
+}
+
+async function bookSlot(slotNum) {
+  if (!commUser) { openAuth('login'); return; }
+  const name = commUserData?.name || commUser.email.split('@')[0];
+  const data = { courtId:activeBookingCourtId, userId:commUser.uid, userName:name, slot:slotNum, date:selectedDate };
+  if (firebaseReady) {
+    try { await fbDb.collection('bookings').add({...data, createdAt:firebase.firestore.FieldValue.serverTimestamp()}); }
+    catch(e) { alert('Errore: '+e.message); return; }
+  } else {
+    const key = 'ow_bk_'+selectedDate;
+    const arr = JSON.parse(localStorage.getItem(key)||'[]');
+    arr.push({...data, id:'loc_'+Date.now()});
+    localStorage.setItem(key, JSON.stringify(arr));
+  }
+  await refreshBookingSlots();
+  await loadCourts();
+}
+
+async function cancelBooking(bookingId) {
+  if (firebaseReady) {
+    try { await fbDb.collection('bookings').doc(bookingId).delete(); } catch(e) { return; }
+  } else {
+    const key = 'ow_bk_'+selectedDate;
+    const arr = JSON.parse(localStorage.getItem(key)||'[]').filter(b=>b.id!==bookingId);
+    localStorage.setItem(key, JSON.stringify(arr));
+  }
+  await refreshBookingSlots();
+  await loadCourts();
+}
+
+// ── CHAT ────────────────────────────────────────────
+function openChatFromBooking() {
+  const court = activeCourts.find(c=>c.id===activeBookingCourtId);
+  if (!court) return;
+  activeChatCourtId = activeBookingCourtId;
+  activeChatDate    = selectedDate;
+  document.getElementById('chat-modal-title').textContent = `💬 ${court.name} · ${selectedDate}`;
+  document.getElementById('chat-messages').innerHTML = `<div class="chat-system-msg">Chat riservata ai 4 giocatori prenotati. Coordinatevi e chiamate la struttura per confermare!</div>`;
+  document.getElementById('chat-modal').classList.add('open');
+
+  if (firebaseReady) {
+    if (chatUnsub) chatUnsub();
+    chatUnsub = fbDb.collection('chats')
+      .doc(`${activeChatCourtId}_${activeChatDate}`)
+      .collection('messages').orderBy('timestamp')
+      .onSnapshot(snap => {
+        const el = document.getElementById('chat-messages');
+        el.innerHTML = `<div class="chat-system-msg">Chat riservata ai 4 giocatori. Coordinatevi per prenotare la struttura!</div>`;
+        snap.forEach(doc => {
+          const m   = doc.data();
+          const me  = m.userId === commUser?.uid;
+          const t   = m.timestamp?.toDate().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}) || '';
+          const div = document.createElement('div');
+          div.className = `chat-msg ${me?'mine':'theirs'}`;
+          div.innerHTML = `${!me?`<div class="msg-author">${esc(m.userName)}</div>`:''}
+            <div class="msg-text">${esc(m.text)}</div>
+            <div class="msg-time">${t}</div>`;
+          el.appendChild(div);
+        });
+        el.scrollTop = el.scrollHeight;
+      });
+  }
+}
+
+async function sendChatMsg() {
+  const input = document.getElementById('chat-input');
+  const text  = input.value.trim();
+  if (!text || !commUser) return;
+  input.value = '';
+  const name = commUserData?.name || commUser.email.split('@')[0];
+  if (firebaseReady) {
+    await fbDb.collection('chats')
+      .doc(`${activeChatCourtId}_${activeChatDate}`)
+      .collection('messages').add({ userId:commUser.uid, userName:name, text, timestamp:firebase.firestore.FieldValue.serverTimestamp() });
+  } else {
+    // Demo: show locally only
+    const el  = document.getElementById('chat-messages');
+    const div = document.createElement('div');
+    div.className = 'chat-msg mine';
+    div.innerHTML = `<div class="msg-text">${esc(text)}</div><div class="msg-time">${new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'})}</div>`;
+    el.appendChild(div);
+    el.scrollTop = el.scrollHeight;
+  }
+}
+
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ── SESSIONS ────────────────────────────────────────
+function loadSessions() {
+  if (sessionsUnsub) { sessionsUnsub(); sessionsUnsub = null; }
+  const container = document.getElementById('surf-sessions-list');
+  if (!container) return;
+
+  if (!firebaseReady) {
+    try {
+      const arr = JSON.parse(localStorage.getItem('ow_sessions')||'[]');
+      renderSessions(arr, container);
+    } catch(e) { renderSessions([], container); }
+    return;
+  }
+
+  const now = new Date().toISOString().slice(0,10);
+  sessionsUnsub = fbDb.collection('sessions')
+    .where('date','>=',now).orderBy('date').orderBy('time').limit(24)
+    .onSnapshot(snap => renderSessions(snap.docs.map(d=>({id:d.id,...d.data()})), container));
+}
+
+function renderSessions(sessions, container) {
+  if (!sessions.length) {
+    container.innerHTML = `<div style="color:var(--sub);font-size:12px;padding:20px;text-align:center;width:100%">
+      Nessuna sessione proposta — sii il primo! 🤙</div>`;
+    return;
+  }
+  container.innerHTML = sessions.slice(0,9).map(s => {
+    const me   = s.userId === commUser?.uid;
+    const bCls = s.sport==='surf' ? 'badge-surf' : 'badge-volley';
+    const bLbl = s.sport==='surf' ? '🏄 Surf' : '🏐 Beach Volley';
+    const parts = s.participants?.length || 1;
+    const joined = s.participants?.includes(commUser?.uid);
+    return `<div class="session-card">
+      ${me?'<div class="mine-tag">tua</div>':''}
+      <div><span class="sport-badge ${bCls}">${bLbl}</span></div>
+      <div class="sc-spot">${esc(s.spotName||s.spot||'Ostia')}</div>
+      <div class="sc-when">📅 ${s.date} · ⏰ ${s.time}</div>
+      <div class="sc-who">👤 ${esc(s.userName)}${parts>1?` +${parts-1} altri`:''}</div>
+      ${s.note?`<div class="sc-note-comm">${esc(s.note)}</div>`:''}
+      ${!me?`<button class="join-btn" onclick="joinSession('${s.id}')">${joined?'✓ Unito':'Partecipa'}</button>`:''}
+      ${me?`<button class="join-btn" style="background:rgba(255,82,82,.12);color:var(--danger);border-color:rgba(255,82,82,.25);" onclick="deleteSession('${s.id}')">Cancella</button>`:''}
+    </div>`;
+  }).join('');
+}
+
+function openPropose(sport) {
+  proposedSport = sport || 'surf';
+  document.querySelectorAll('#propose-sport-toggle .sport-opt').forEach(o=>o.classList.toggle('active', o.dataset.sport===proposedSport));
+  const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate()+1);
+  document.getElementById('propose-date').value = tomorrow.toISOString().slice(0,10);
+  document.getElementById('propose-modal').classList.add('open');
+}
+
+function selectSport(sport) {
+  proposedSport = sport;
+  document.querySelectorAll('#propose-sport-toggle .sport-opt').forEach(o=>o.classList.toggle('active', o.dataset.sport===sport));
+  const sel = document.getElementById('propose-spot');
+  if (sport === 'beach_volley') {
+    sel.innerHTML = activeCourts.map(c=>`<option value="${esc(c.name)}">${esc(c.name)}</option>`).join('');
+  } else {
+    sel.innerHTML = ['Porto di Roma','Ostia Ponente','Lido di Ostia','Venezia / Stella Polare','Castel Fusano ⭐','Capocotta']
+      .map(s=>`<option value="${s}">${s}</option>`).join('');
+  }
+}
+
+async function submitSession(e) {
+  e.preventDefault();
+  if (!commUser) return;
+  const name = commUserData?.name || commUser.email.split('@')[0];
+  const data = {
+    sport:proposedSport,
+    spotName: document.getElementById('propose-spot').value,
+    date:     document.getElementById('propose-date').value,
+    time:     document.getElementById('propose-time').value,
+    note:     document.getElementById('propose-note').value,
+    userId:   commUser.uid, userName:name,
+    participants:[commUser.uid],
+    createdAt:new Date().toISOString()
+  };
+  if (firebaseReady) {
+    await fbDb.collection('sessions').add({...data, createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+  } else {
+    const arr = JSON.parse(localStorage.getItem('ow_sessions')||'[]');
+    arr.unshift({...data, id:'loc_'+Date.now()});
+    localStorage.setItem('ow_sessions', JSON.stringify(arr));
+    loadSessions();
+  }
+  document.getElementById('propose-note').value = '';
+  closeModal('propose-modal');
+}
+
+async function joinSession(id) {
+  if (!commUser || !firebaseReady) return;
+  await fbDb.collection('sessions').doc(id).update({
+    participants: firebase.firestore.FieldValue.arrayUnion(commUser.uid)
+  });
+}
+
+async function deleteSession(id) {
+  if (!commUser) return;
+  if (!confirm('Cancellare questa sessione?')) return;
+  if (firebaseReady) {
+    await fbDb.collection('sessions').doc(id).delete();
+  } else {
+    const arr = JSON.parse(localStorage.getItem('ow_sessions')||'[]').filter(s=>s.id!==id);
+    localStorage.setItem('ow_sessions', JSON.stringify(arr));
+    loadSessions();
+  }
+}
+
+// ── COURT MAP MARKERS ────────────────────────────────
+
+/** Dot threshold: below this zoom courts show as small yellow dots */
+const COURTS_DOT_ZOOM = 13;
+
+function makeCourtIcon(court, zoom) {
+  if (zoom < COURTS_DOT_ZOOM) {
+    // tiny yellow dot — easy to spot from far out
+    return L.divIcon({
+      className: '',
+      html: `<div style="width:10px;height:10px;border-radius:50%;background:#ffab00;border:1.5px solid #ffe066;box-shadow:0 0 6px rgba(255,171,0,.7);"></div>`,
+      iconSize: [10,10], iconAnchor: [5,5]
+    });
+  } else {
+    // full square icon with volleyball emoji
+    return L.divIcon({
+      className: '',
+      html: `<div style="width:30px;height:30px;border-radius:7px;background:rgba(255,171,0,.88);border:1.5px solid rgba(255,220,50,.8);display:flex;align-items:center;justify-content:center;box-shadow:0 0 10px rgba(255,171,0,.4);cursor:pointer;font-size:15px;" title="${court.name}">🏐</div>`,
+      iconSize: [30,30], iconAnchor: [15,15]
+    });
+  }
+}
+
+function placeCourts(courts) {
+  courtMarkers.forEach(m=>{ try{ map.removeLayer(m); }catch(e){} });
+  courtMarkers = [];
+  courts.forEach(court => {
+    const pos  = getSavedPos('court', court.id, court.lat, court.lng);
+    const z    = map.getZoom();
+    const icon = makeCourtIcon(court, z);
+    const m = L.marker([pos.lat, pos.lng], {icon, draggable:true})
+      .bindTooltip(`<span style="color:#ffab00;font-weight:700;font-size:11px;">🏐 ${court.name}</span>`,{direction:'top',className:'',offset:[0,-18]})
+      .on('click', () => { if(!adminMode){ commUser ? openBooking(court.id) : openAuth('login'); } })
+      .on('dragend', function(e) {
+        if (!adminMode) return;
+        const {lat,lng} = e.target.getLatLng();
+        savePos('court', court.id, lat, lng);
+        showAdminToast(`📍 ${court.name} salvato`);
+      });
+    // Initialize the drag handler (requires being on map once)
+    m.addTo(map);
+    if (m.dragging) m.dragging.disable();  // starts locked
+    map.removeLayer(m);  // visibility managed by updateCourtMapVis
+    m._courtData = court;
+    courtMarkers.push(m);
+  });
+  updateCourtMapVis();
+  map.off('zoomend', updateCourtMapVis);
+  map.on('zoomend', updateCourtMapVis);
+}
+
+function updateCourtMapVis() {
+  const z = map.getZoom();
+  // DOT threshold: show dots from zoom 11 up, full icons from COURTS_MIN_ZOOM
+  const dotMin = COURTS_MIN_ZOOM - 3; // dots appear 3 levels before full icons
+  courtMarkers.forEach(m => {
+    const court = m._courtData || {};
+    if (z >= dotMin || adminMode) {
+      // update icon based on current zoom
+      m.setIcon(makeCourtIcon(court, z));
+      if (!map.hasLayer(m)) m.addTo(map);
+    } else {
+      if (map.hasLayer(m)) map.removeLayer(m);
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════
+// ADMIN DRAG MODE
+// ═══════════════════════════════════════════════════
+
+/** Legge posizione salvata da localStorage (drag persistente) */
+function getSavedPos(type, id, defaultLat, defaultLng) {
+  try {
+    const s = localStorage.getItem(`ow_pos_${type}_${id}`);
+    if (s) { const p = JSON.parse(s); return {lat:p.lat, lng:p.lng}; }
+  } catch(e) {}
+  return {lat: defaultLat, lng: defaultLng};
+}
+
+/** Salva posizione in localStorage (e su Firestore per i campi se Firebase è pronto) */
+function savePos(type, id, lat, lng) {
+  localStorage.setItem(`ow_pos_${type}_${id}`, JSON.stringify({lat, lng}));
+  if (firebaseReady && type === 'court') {
+    fbDb.collection('courts').doc(id).update({lat, lng}).catch(()=>{});
+  }
+}
+
+/** POI sempre visibili indipendentemente dalle condizioni del mare */
+function shouldShowSpot(spot, wh, ws) {
+  return true;
+}
+
+/** Mostra/nasconde gli spot surf in base alle condizioni (o admin mode) */
+function updateSpotVisibility(wh, ws) {
+  spotMarkers.forEach(m => {
+    const spot = m._spotData;
+    if (!spot) return;
+    const show = adminMode || shouldShowSpot(spot, wh, ws);
+    if (show && !map.hasLayer(m)) m.addTo(map);
+    else if (!show && map.hasLayer(m)) map.removeLayer(m);
+  });
+}
+
+/** Attiva/disattiva admin drag mode (Ctrl+Shift+P) */
+function toggleAdminMode() {
+  adminMode = !adminMode;
+  const banner = document.getElementById('admin-mode-banner');
+  banner.style.display = adminMode ? 'block' : 'none';
+
+  // In admin mode: disabilita il pan della mappa in modo che il drag
+  // degli marker non venga "catturato" dalla mappa sottostante
+  if (adminMode) {
+    map.dragging.disable();
+    map.getContainer().style.cursor = 'default';
+  } else {
+    map.dragging.enable();
+    map.getContainer().style.cursor = '';
+  }
+
+  // Spot markers: abilita/disabilita drag + cursore visivo
+  spotMarkers.forEach(m => {
+    if (!m.dragging) return; // not yet added to map, skip
+    if (adminMode) {
+      m.dragging.enable();
+      if (m._icon) { m._icon.style.cursor = 'grab'; m._icon.style.outline = '2px dashed rgba(255,171,0,.8)'; }
+    } else {
+      m.dragging.disable();
+      if (m._icon) { m._icon.style.cursor = 'pointer'; m._icon.style.outline = ''; }
+    }
+  });
+
+  // Court markers
+  courtMarkers.forEach(m => {
+    if (!m.dragging) return;
+    if (adminMode) {
+      m.dragging.enable();
+      if (m._icon) { m._icon.style.cursor = 'grab'; }
+    } else {
+      m.dragging.disable();
+      if (m._icon) { m._icon.style.cursor = ''; }
+    }
+  });
+
+  // Webcam markers
+  camMarkersGlobal.forEach(m => {
+    if (!m.dragging) return;
+    if (adminMode) {
+      m.dragging.enable();
+      if (m._icon) { m._icon.style.cursor = 'grab'; m._icon.style.outline = '2px dashed rgba(0,180,255,.8)'; }
+    } else {
+      m.dragging.disable();
+      if (m._icon) { m._icon.style.cursor = 'pointer'; m._icon.style.outline = ''; }
+    }
+  });
+
+  // Casa Clandestina
+  if (typeof casaMarkerRef !== 'undefined' && casaMarkerRef) {
+    if (adminMode) {
+      if (casaMarkerRef.dragging) casaMarkerRef.dragging.enable();
+      if (casaMarkerRef._icon) casaMarkerRef._icon.style.cursor = 'grab';
+    } else {
+      if (casaMarkerRef.dragging) casaMarkerRef.dragging.disable();
+      if (casaMarkerRef._icon) casaMarkerRef._icon.style.cursor = '';
+      const {lat,lng} = casaMarkerRef.getLatLng();
+      savePos('poi', 'casa', lat, lng);
+    }
+  }
+
+  // Aggiorna visibilità: in admin mode mostra tutti
+  updateSpotVisibility(lastWh, lastWs);
+  // In admin mode mostra anche court markers a qualsiasi zoom; aggiorna icone
+  if (adminMode) {
+    const z = map.getZoom();
+    courtMarkers.forEach(m => {
+      m.setIcon(makeCourtIcon(m._courtData || {}, z));
+      if (!map.hasLayer(m)) m.addTo(map);
+    });
+  } else {
+    updateCourtMapVis();
+  }
+
+  if (adminMode) showAdminToast('⚙ Admin mode attivo — trascina le icone');
+}
+
+/** Toast di conferma rapida per l'admin */
+let _toastTimer = null;
+function showAdminToast(msg) {
+  let el = document.getElementById('admin-toast');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'admin-toast';
+    el.style.cssText = 'position:fixed;bottom:110px;left:50%;transform:translateX(-50%);z-index:2600;background:rgba(255,171,0,.95);color:#0a0800;padding:7px 18px;border-radius:14px;font-size:11px;font-weight:900;letter-spacing:1px;text-transform:uppercase;box-shadow:0 4px 16px rgba(0,0,0,.5);transition:opacity .4s;pointer-events:none;white-space:nowrap;';
+    document.body.appendChild(el);
+  }
+  el.textContent = msg;
+  el.style.opacity = '1';
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => { el.style.opacity = '0'; }, 2200);
+}
+
+// ── MODAL HELPERS ────────────────────────────────────
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+  if (id==='chat-modal' && chatUnsub) { chatUnsub(); chatUnsub=null; }
+}
+
+function closeModalOverlay(id, e) {
+  if (e.target === document.getElementById(id)) closeModal(id);
+}
+
+// ── AUTH ────────────────────────────────────────────
+function openAuth(tab) {
+  switchAuthTab(tab || 'login');
+  document.getElementById('auth-modal').classList.add('open');
+}
+
+function switchAuthTab(tab) {
+  document.getElementById('tab-login').classList.toggle('active', tab==='login');
+  document.getElementById('tab-register').classList.toggle('active', tab==='register');
+  document.getElementById('login-form').style.display  = tab==='login' ? '' : 'none';
+  document.getElementById('register-form').style.display = tab==='register' ? '' : 'none';
+  showAuthErr('');
+}
+
+// ── ADMIN PANEL ──────────────────────────────────────
+async function openAdmin() {
+  document.getElementById('admin-modal').classList.add('open');
+  switchAdminTab('users');
+}
+
+function switchAdminTab(tab) {
+  document.querySelectorAll('.admin-tab-btn').forEach((btn,i) =>
+    btn.classList.toggle('active', ['users','courts','sessions'][i] === tab));
+  document.querySelectorAll('.admin-section').forEach(s => s.classList.remove('active'));
+  document.getElementById('admin-'+tab).classList.add('active');
+  if (tab==='users')         loadAdminUsers();
+  else if (tab==='courts')   loadAdminCourts();
+  else if (tab==='sessions') loadAdminSessions();
+}
+
+async function loadAdminUsers() {
+  const el = document.getElementById('admin-users-list');
+  if (!firebaseReady) {
+    el.innerHTML = '<div style="color:var(--sub);font-size:12px;">Firebase non configurato.</div>';
+    return;
+  }
+  const snap = await fbDb.collection('users').get();
+  const users = snap.docs.map(d=>({id:d.id,...d.data()}));
+  el.innerHTML = users.length ? users.map(u=>`
+    <div class="admin-list-item">
+      <div style="flex:1">
+        <div class="item-name">${esc(u.name||'—')} ${u.role==='admin'?'⭐':''}</div>
+        <div class="item-meta">${esc(u.email)}</div>
+      </div>
+      <div class="admin-actions">
+        ${u.email!==ADMIN_EMAIL
+          ? `<button class="adm-btn adm-del" onclick="adminDelUser('${u.id}','${esc(u.email)}')">Elimina</button>`
+          : '<span style="font-size:9px;color:var(--sub);">Admin</span>'}
+      </div>
+    </div>`).join('')
+    : '<div style="color:var(--sub);font-size:12px;">Nessun utente registrato.</div>';
+}
+
+async function adminDelUser(uid, email) {
+  if (!confirm('Eliminare utente ' + email + '?')) return;
+  await fbDb.collection('users').doc(uid).delete();
+  const bk = await fbDb.collection('bookings').where('userId','==',uid).get();
+  const batch = fbDb.batch();
+  bk.docs.forEach(d=>batch.delete(d.ref));
+  await batch.commit();
+  loadAdminUsers();
+}
+
+async function loadAdminCourts() {
+  const el = document.getElementById('admin-courts-list');
+  let courts = DEFAULT_COURTS;
+  if (firebaseReady) {
+    const snap = await fbDb.collection('courts').get();
+    if (!snap.empty) courts = snap.docs.map(d=>({id:d.id,...d.data()}));
+  }
+  el.innerHTML = courts.map(c=>`
+    <div class="admin-list-item">
+      <div style="flex:1">
+        <div class="item-name">🏐 ${esc(c.name)} ${c.blocked?'🚫':''}</div>
+        <div class="item-meta">${(c.lat||0).toFixed(4)}, ${(c.lng||0).toFixed(4)}</div>
+      </div>
+      <div class="admin-actions">
+        ${firebaseReady ? `
+          <button class="adm-btn ${c.blocked?'adm-unblock':'adm-block'}" onclick="adminToggleBlock('${c.id}',${!c.blocked})">${c.blocked?'Sblocca':'Blocca'}</button>
+          <button class="adm-btn adm-del" onclick="adminDelCourt('${c.id}')">Elimina</button>
+        ` : '<span style="font-size:9px;color:var(--sub);">Demo</span>'}
+      </div>
+    </div>`).join('')
+    || '<div style="color:var(--sub);font-size:12px;">Nessun campo.</div>';
+}
+
+async function adminToggleBlock(id, blocked) {
+  if (!firebaseReady) return;
+  await fbDb.collection('courts').doc(id).update({blocked});
+  loadAdminCourts();
+  loadCourts();
+}
+
+async function adminDelCourt(id) {
+  if (!confirm('Eliminare questo campo e tutte le sue prenotazioni?')) return;
+  await fbDb.collection('courts').doc(id).delete();
+  const bk = await fbDb.collection('bookings').where('courtId','==',id).get();
+  const batch = fbDb.batch();
+  bk.docs.forEach(d=>batch.delete(d.ref));
+  await batch.commit();
+  loadAdminCourts();
+  loadCourts();
+}
+
+async function adminCreateCourt() {
+  const name  = document.getElementById('new-court-name').value.trim();
+  const sport = document.getElementById('new-court-sport').value;
+  const lat   = parseFloat(document.getElementById('new-court-lat').value);
+  const lng   = parseFloat(document.getElementById('new-court-lng').value);
+  if (!name || isNaN(lat) || isNaN(lng)) { alert('Compila tutti i campi.'); return; }
+  const data  = {name, sport, lat, lng, blocked:false};
+  if (firebaseReady) {
+    await fbDb.collection('courts').add({...data, createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+  } else {
+    DEFAULT_COURTS.push({id:'loc_'+str(Date.now()), ...data});
+    activeCourts = [...DEFAULT_COURTS];
+    placeCourts(activeCourts);
+  }
+  document.getElementById('new-court-name').value = '';
+  document.getElementById('new-court-lat').value  = '';
+  document.getElementById('new-court-lng').value  = '';
+  loadAdminCourts();
+  loadCourts();
+}
+
+async function loadAdminSessions() {
+  const el = document.getElementById('admin-sessions-list');
+  if (!firebaseReady) {
+    el.innerHTML = '<div style="color:var(--sub);font-size:12px;">Firebase non configurato.</div>';
+    return;
+  }
+  const snap = await fbDb.collection('sessions').orderBy('createdAt','desc').limit(20).get();
+  const arr  = snap.docs.map(d=>({id:d.id,...d.data()}));
+  el.innerHTML = arr.length ? arr.map(s=>`
+    <div class="admin-list-item">
+      <div style="flex:1">
+        <div class="item-name">${s.sport==='surf'?'🏄':'🏐'} ${esc(s.spotName)} — ${s.date} ${s.time}</div>
+        <div class="item-meta">${esc(s.userName)} · ${s.participants?.length||1} partecipanti</div>
+      </div>
+      <div class="admin-actions">
+        <button class="adm-btn adm-del" onclick="adminDelSession('${s.id}')">Elimina</button>
+      </div>
+    </div>`).join('')
+    : '<div style="color:var(--sub);font-size:12px;">Nessuna sessione.</div>';
+}
+
+async function adminDelSession(id) {
+  await fbDb.collection('sessions').doc(id).delete();
+  loadAdminSessions();
+}
+
+// Usa 'load' per aspettare Leaflet/Chart.js dai CDN, ma con failsafe rapido
+window.addEventListener('load', main);
+
+// Failsafe nucleare: se dopo 8s il loading è ancora visibile, rimuovilo e basta
+setTimeout(() => {
+  const ld = document.getElementById('loading');
+  if (ld && ld.style.display !== 'none' && ld.style.opacity !== '0') {
+    ld.style.transition = 'opacity .3s';
+    ld.style.opacity = '0';
+    setTimeout(() => { ld.style.display = 'none'; }, 300);
+    console.warn('Failsafe attivato dopo 16s');
+  }
+}, 16000);
+</script>
+</body>
+</html>
