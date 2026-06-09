@@ -1454,7 +1454,12 @@ function placeMarkers(v) {
     })
     .bindPopup(popupHTML(s,wh,v.wp,v.wd,v.ws,v.wdir,v.wg,v.sh*f,v.sp), {maxWidth:260,className:''})
     .on('dragend', function(e) {
-      if (!adminMode) return;
+      if (!adminMode) {
+        // Revert position if not in admin mode
+        const savedPos = getSavedPos('spot', s.id, s.lat, s.lng);
+        e.target.setLatLng([savedPos.lat, savedPos.lng]);
+        return;
+      }
       const {lat,lng} = e.target.getLatLng();
       savePos('spot', s.id, lat, lng);
       showAdminToast(`📍 ${s.name} salvato`);
@@ -2704,7 +2709,12 @@ function placeCourts(courts) {
       .bindTooltip(`<span style="color:#ffab00;font-weight:700;font-size:11px;">🏐 ${court.name}</span>`,{direction:'top',className:'',offset:[0,-18]})
       .on('click', () => { if(!adminMode){ commUser ? openBooking(court.id) : openAuth('login'); } })
       .on('dragend', function(e) {
-        if (!adminMode) return;
+        if (!adminMode) {
+          // Revert position if not in admin mode
+          const savedPos = getSavedPos('court', court.id, court.lat, court.lng);
+          e.target.setLatLng([savedPos.lat, savedPos.lng]);
+          return;
+        }
         const {lat,lng} = e.target.getLatLng();
         savePos('court', court.id, lat, lng);
         showAdminToast(`📍 ${court.name} salvato`);
